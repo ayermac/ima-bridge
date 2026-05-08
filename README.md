@@ -32,6 +32,12 @@ IMA Bridge 是一个本地桌面客户端，用于浏览、下载和同步腾讯
 npm install
 ```
 
+## 测试
+
+```bash
+npm run test:run
+```
+
 ## 开发启动
 
 ```bash

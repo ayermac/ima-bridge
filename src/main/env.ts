@@ -23,7 +23,7 @@ export type ImaOpenApiConfigStatus = {
 
 let loaded = false;
 
-function parseEnv(content: string): Record<string, string> {
+export function parseEnv(content: string): Record<string, string> {
   const result: Record<string, string> = {};
 
   for (const rawLine of content.split(/\r?\n/)) {
@@ -97,20 +97,24 @@ function getSettingsStoreValue(): AppSettings | null {
   return _settingsCache;
 }
 
-function resolveCredentials(): ImaOpenApiCredentials | null {
-  loadLocalEnv();
-
-  // Priority: settings-store > shell env > .env.local > .env
-  const settings = getSettingsStoreValue();
+export function resolveCredentialsFromSources(
+  settings: { imaOpenApiClientId?: string; imaOpenApiApiKey?: string } | null,
+  env: Record<string, string | undefined>
+): ImaOpenApiCredentials | null {
   if (settings?.imaOpenApiClientId && settings?.imaOpenApiApiKey) {
     return { clientId: settings.imaOpenApiClientId, apiKey: settings.imaOpenApiApiKey };
   }
 
-  const clientId = String(process.env.IMA_OPENAPI_CLIENTID || "").trim();
-  const apiKey = String(process.env.IMA_OPENAPI_APIKEY || "").trim();
+  const clientId = String(env.IMA_OPENAPI_CLIENTID || "").trim();
+  const apiKey = String(env.IMA_OPENAPI_APIKEY || "").trim();
   if (!clientId || !apiKey) return null;
 
   return { clientId, apiKey };
+}
+
+function resolveCredentials(): ImaOpenApiCredentials | null {
+  loadLocalEnv();
+  return resolveCredentialsFromSources(getSettingsStoreValue(), process.env as Record<string, string | undefined>);
 }
 
 export function getImaOpenApiCredentials(): ImaOpenApiCredentials | null {
@@ -152,7 +156,7 @@ export function getImaOpenApiConfigStatus(): ImaOpenApiConfigStatus {
   };
 }
 
-function previewCredential(value: string): string {
+export function previewCredential(value: string): string {
   if (value.length <= 12) return `${value.slice(0, 2)}***${value.slice(-2)}`;
   return `${value.slice(0, 4)}****${value.slice(-4)}`;
 }

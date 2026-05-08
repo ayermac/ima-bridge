@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { KnowledgeBase, DocumentItem, QueueItem, FolderPathItem } from "@core/types";
+import { filenameFor, pathParts, cleanPathPart } from "@core/path-utils";
 import { useAccountInfo, useRuntime, useOpenApiConfigStatus, useOpenApiSettings, useDuplicatePolicy, useSyncApi, createImaWebApi } from "./hooks/useIpc";
 import LoginPanel from "./components/LoginPanel";
 import KnowledgeBaseList from "./components/KnowledgeBaseList";
@@ -7,36 +8,6 @@ import DocumentList from "./components/DocumentList";
 import DownloadQueue from "./components/DownloadQueue";
 import TargetKbSelector from "./components/TargetKbSelector";
 import SettingsPanel from "./components/SettingsPanel";
-
-function cleanPathPart(part: string): string {
-  return (
-    part
-      .replace(/[\\/:*?"<>|]/g, "_")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 120) || "未命名"
-  );
-}
-
-function pathParts(path: string): string[] {
-  return String(path || "")
-    .split("/")
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map(cleanPathPart);
-}
-
-function filenameFor(doc: DocumentItem, media: Record<string, unknown>): string {
-  const title = cleanPathPart(String(media?.title || doc.title || "ima-file"));
-  const sourcePath = String(media?.source_path || media?.raw_file_url || "");
-  let ext = "";
-  if (sourcePath.includes(".")) {
-    const candidate = sourcePath.slice(sourcePath.lastIndexOf("."));
-    if (/^\.[a-z0-9]{1,8}$/i.test(candidate)) ext = candidate;
-  }
-  const filename = ext && !title.toLowerCase().endsWith(ext.toLowerCase()) ? `${title}${ext}` : title;
-  return [...pathParts(doc._path), filename].join("/");
-}
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
