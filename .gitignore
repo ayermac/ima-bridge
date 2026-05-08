@@ -54,3 +54,9 @@ playwright-report/
 *.bak
 *.tmp
 .cache/
+
+# Release / packaging
+release/
+builder-effective-config.yaml
+builder-debug.yml
+.electron-builder/

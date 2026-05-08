@@ -68,7 +68,12 @@ export function useRuntime() {
     return api.openPath(filePath);
   }, []);
 
-  return { chooseDirectory, saveFile, downloadUrl, openPath };
+  const joinPath = useCallback((...segments: string[]) => {
+    if (!api) return segments.join("/");
+    return api.joinPath(...segments);
+  }, []);
+
+  return { chooseDirectory, saveFile, downloadUrl, openPath, joinPath };
 }
 
 export function useOpenApiConfigStatus() {

@@ -243,18 +243,18 @@ export default function App() {
         const media = await api.resolveMedia(targetItem.mediaId);
         const title = cleanPathPart(targetItem.title || "ima-link");
         const rel = [...pathParts(targetItem.sourcePath), `${title}.txt`].join("/");
-        localPath = `${downloadDir}/${rel}`;
+        localPath = runtime.joinPath(downloadDir, rel);
         await runtime.saveFile(localPath, String(media.url));
       } else if (targetItem.mediaType === 6) {
         const exported = await api.exportWechat(targetItem.mediaId);
         const rel = [...pathParts(targetItem.sourcePath), `${cleanPathPart(exported.title)}.html`].join("/");
-        localPath = `${downloadDir}/${rel}`;
+        localPath = runtime.joinPath(downloadDir, rel);
         await runtime.saveFile(localPath, exported.content);
       } else if (targetItem.mediaType === 11) {
         setStatusInQueue("exporting");
         const exported = await api.exportNote(targetItem.mediaId, noteFormat);
         const rel = [...pathParts(targetItem.sourcePath), `${cleanPathPart(exported.title)}.${noteFormat}`].join("/");
-        localPath = `${downloadDir}/${rel}`;
+        localPath = runtime.joinPath(downloadDir, rel);
         await runtime.saveFile(localPath, exported.content);
       } else {
         const media = await api.resolveMedia(targetItem.mediaId);
@@ -274,7 +274,7 @@ export default function App() {
           } as DocumentItem,
           media.data
         );
-        localPath = `${downloadDir}/${rel}`;
+        localPath = runtime.joinPath(downloadDir, rel);
         await runtime.downloadUrl(media.url, localPath);
       }
 

@@ -75,6 +75,57 @@ cp .env.example .env
 - **凭证存储**：当前为本地明文 JSON，未使用系统钥匙串或加密存储。
 - **平台**：目前基于 Electron，后续可能评估 Tauri 迁移。
 
+## 打包发布
+
+> 当前打包产物**未进行代码签名**。macOS 和 Windows 可能会在首次运行时提示安全警告，用户需要手动允许运行。
+
+### 先决条件
+
+确保已运行 `npm install` 安装依赖（包含 `electron-builder`）。
+
+### 打包当前平台
+
+```bash
+npm run build
+npm run pack
+```
+
+`pack` 会生成未封装的 app 目录（方便调试），输出到 `release/mac` 或 `release/win-unpacked`。
+
+### 构建 macOS 安装包
+
+```bash
+npm run dist:mac
+```
+
+产物：
+- `release/IMA Bridge-0.2.7.dmg` — 标准安装包
+- `release/IMA Bridge-0.2.7-mac.zip` — 便携压缩包
+
+### 构建 Windows 安装包
+
+```bash
+npm run dist:win
+```
+
+产物：
+- `release/IMA Bridge Setup 0.2.7.exe` — 安装向导
+- `release/IMA Bridge 0.2.7.exe` — 便携版
+
+> 在 macOS 上构建 Windows 安装包需要安装 Wine 和 Mono，或使用 CI/CD（GitHub Actions 等）。如环境不支持，请在 Windows 机器上执行 `npm run dist:win`。
+
+### 完整发布（当前平台 + 通用）
+
+```bash
+npm run dist
+```
+
+### 安全提示
+
+由于未签名：
+- **macOS**：首次打开可能提示「无法验证开发者」。请前往「系统设置 → 隐私与安全性」点击「仍要打开」。
+- **Windows**：SmartScreen 可能拦截，点击「更多信息」→「仍要运行」。
+
 ## License
 
 UNLICENSED

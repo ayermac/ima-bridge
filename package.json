@@ -1,6 +1,6 @@
 {
   "name": "ima-bridge",
-  "version": "0.2.5",
+  "version": "0.2.7",
   "description": "IMA Bridge Desktop Client — Browse, download and sync IMA knowledge base content locally.",
   "main": "./out/main/index.js",
   "scripts": {
@@ -8,7 +8,11 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "pack": "electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",
@@ -16,6 +20,7 @@
     "@types/react-dom": "^18.2.25",
     "@vitejs/plugin-react": "^4.2.1",
     "electron": "^30.0.1",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^2.2.0",
     "typescript": "^5.4.5",
     "vite": "^5.2.9"
@@ -24,5 +29,55 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "build": {
+    "appId": "com.imabridge.app",
+    "productName": "IMA Bridge",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
 }

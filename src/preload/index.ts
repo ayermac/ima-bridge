@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import path from "path";
 import type { ImaAccountInfo, ElectronRuntimeApi } from "@runtime/adapter";
 
 const api: ElectronRuntimeApi = {
@@ -10,6 +11,7 @@ const api: ElectronRuntimeApi = {
   saveFile: (filePath: string, data: string) => ipcRenderer.invoke("ima:saveFile", filePath, data),
   downloadUrl: (url: string, filePath: string) => ipcRenderer.invoke("ima:downloadUrl", url, filePath),
   openPath: (filePath: string) => ipcRenderer.invoke("ima:openPath", filePath),
+  joinPath: (...segments: string[]) => path.join(...segments),
   getOpenApiConfigStatus: () => ipcRenderer.invoke("ima:getOpenApiConfigStatus"),
   getOpenApiSettingsStatus: () => ipcRenderer.invoke("ima:getOpenApiSettingsStatus"),
   saveOpenApiSettings: (clientId: string, apiKey: string) => ipcRenderer.invoke("ima:saveOpenApiSettings", clientId, apiKey),

@@ -40,6 +40,7 @@ export type ElectronRuntimeApi = {
   saveFile(path: string, data: string): Promise<void>;
   downloadUrl(url: string, path: string): Promise<void>;
   openPath(path: string): Promise<void>;
+  joinPath(...segments: string[]): string;
   getOpenApiConfigStatus(): Promise<ImaOpenApiConfigStatus>;
   getOpenApiSettingsStatus(): Promise<ImaOpenApiConfigStatus>;
   saveOpenApiSettings(clientId: string, apiKey: string): Promise<{ success: boolean }>;
