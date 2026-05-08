@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import type { KnowledgeBase } from "@core/types";
+import { EmptyState } from "./AppState";
 
 type Props = {
   configured: boolean;
@@ -46,8 +47,8 @@ export default function TargetKbSelector({
     return (
       <button
         disabled
-        className="primary"
-        style={{ height: 32, padding: "0 12px", opacity: 0.6, cursor: "not-allowed" }}
+        className="small"
+        style={{ opacity: 0.6, cursor: "not-allowed" }}
         title="请在设置中配置 IMA_OPENAPI_CLIENTID 和 IMA_OPENAPI_APIKEY"
       >
         OpenAPI 未配置
@@ -59,30 +60,24 @@ export default function TargetKbSelector({
 
   return (
     <div style={{ position: "relative" }}>
-      <button onClick={() => setOpen((v) => !v)} disabled={loading} className="primary" style={{ height: 32, padding: "0 12px" }}>
+      <button onClick={() => setOpen((v) => !v)} disabled={loading} className="primary small">
         {selected ? `同步到: ${selected.name}` : "选择目标知识库"}
       </button>
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: 38,
-            left: 0,
-            zIndex: 100,
-            background: "#fff",
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-            minWidth: 280,
-            maxHeight: 320,
-            overflow: "auto",
-            padding: "8px 0",
-          }}
-        >
-          {loading && <div style={{ padding: "12px 16px", fontSize: 13, color: "var(--text-secondary)" }}>加载中...</div>}
-          {error && <div style={{ padding: "12px 16px", fontSize: 13, color: "#dc2626" }}>{error}</div>}
+        <div className="dropdown" style={{ top: 36, left: 0, minWidth: 280, maxWidth: 360 }}>
+          {loading && (
+            <div style={{ padding: "14px 16px", fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="list-loading__spinner" style={{ width: 14, height: 14 }} />
+              加载中...
+            </div>
+          )}
+          {error && (
+            <div style={{ padding: "12px 16px", fontSize: 13, color: "var(--danger)" }}>{error}</div>
+          )}
           {!loading && !error && bases.length === 0 && (
-            <div style={{ padding: "12px 16px", fontSize: 13, color: "var(--text-secondary)" }}>没有可添加的知识库</div>
+            <div style={{ padding: "12px 16px" }}>
+              <EmptyState title="没有可添加的知识库" description="请确认 OpenAPI 配置正确，或刷新列表。" />
+            </div>
           )}
           {bases.map((base) => (
             <div
@@ -91,30 +86,13 @@ export default function TargetKbSelector({
                 onSelect(base.id);
                 setOpen(false);
               }}
-              style={{
-                padding: "10px 16px",
-                cursor: "pointer",
-                fontSize: 14,
-                background: base.id === selectedId ? "#eff6ff" : "transparent",
-                color: base.id === selectedId ? "var(--primary)" : "var(--text)",
-                fontWeight: base.id === selectedId ? 600 : 400,
-              }}
+              className={`dropdown__item${base.id === selectedId ? " dropdown__item--active" : ""}`}
             >
-              {base.name}
+              <span className="truncate" style={{ flex: 1 }} title={base.name}>{base.name}</span>
+              {base.id === selectedId && <span style={{ fontSize: 12, color: "var(--primary)" }}>✓</span>}
             </div>
           ))}
-          <div
-            style={{
-              padding: "8px 16px",
-              borderTop: "1px solid var(--border)",
-              fontSize: 12,
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-            }}
-            onClick={() => {
-              load();
-            }}
-          >
+          <div className="dropdown__footer" onClick={() => load()}>
             刷新列表
           </div>
         </div>

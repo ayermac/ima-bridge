@@ -46,6 +46,7 @@ const FOLDER_PAGE_SIZE = 50;
 
 export default function App() {
   const { account, openLogin, clearLogin } = useAccountInfo();
+  const [loginPending, setLoginPending] = useState(false);
   const runtime = useRuntime();
   const { configStatus, refreshOpenApiConfigStatus } = useOpenApiConfigStatus();
   const { settingsStatus, saving: savingSettings, saveSettings, clearSettings } = useOpenApiSettings();
@@ -458,6 +459,17 @@ export default function App() {
     if (dir) setDownloadDir(dir);
   }, [runtime]);
 
+  const handleOpenLogin = useCallback(() => {
+    setLoginPending(true);
+    openLogin();
+  }, [openLogin]);
+
+  useEffect(() => {
+    if (account && loginPending) {
+      setLoginPending(false);
+    }
+  }, [account, loginPending]);
+
   // Load persisted queue state on mount
   useEffect(() => {
     if (loadedRef.current) return;
@@ -514,9 +526,9 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ fontSize: 22, fontWeight: 700 }}>IMA Bridge</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="toolbar" style={{ marginBottom: 16, justifyContent: "space-between" }}>
+        <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em", flexShrink: 0 }}>IMA Bridge</div>
+        <div className="toolbar" style={{ gap: 10, justifyContent: "flex-end" }}>
           <span
             className={configStatus.configured ? "status ok" : "status"}
             title="IMA OpenAPI ClientID / APIKey 配置状态"
@@ -538,16 +550,20 @@ export default function App() {
             onLoad={() => {}}
             listAddableKnowledgeBases={syncApi.listAddableKnowledgeBases}
           />
-          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+          <span
+            className="path-text"
+            title={downloadDir || ""}
+            style={{ maxWidth: 280 }}
+          >
             {downloadDir ? `下载目录: ${downloadDir}` : "未选择下载目录"}
           </span>
-          <button onClick={handleChooseDir} className="primary">
-            选择下载目录
+          <button onClick={handleChooseDir} className="primary small">
+            选择目录
           </button>
         </div>
       </div>
 
-      <LoginPanel account={account} onOpenLogin={openLogin} onClearLogin={clearLogin} />
+      <LoginPanel account={account} onOpenLogin={handleOpenLogin} onClearLogin={clearLogin} loading={loginPending} />
 
       {view === "kb" && (
         <KnowledgeBaseList

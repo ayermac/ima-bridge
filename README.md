@@ -17,6 +17,7 @@ IMA Bridge 是一个本地桌面客户端，用于浏览、下载和同步腾讯
 - **队列持久化**：下载/同步队列支持持久化，重启后可恢复并继续。
 - **设置面板**：在应用内安全配置 OpenAPI 凭证，无需手动编辑 `.env`。
 - **重名策略**：同步时遇到同名文件可选择「拒绝」「自动重命名」或「跳过」。
+- **v0.3 视觉升级**：Mascot 状态组件、Loading / Empty / Success / Error 状态反馈、全局视觉层级与响应式优化。
 
 ## 安全说明
 
@@ -99,8 +100,8 @@ npm run dist:mac
 ```
 
 产物：
-- `release/IMA Bridge-0.2.7.dmg` — 标准安装包
-- `release/IMA Bridge-0.2.7-mac.zip` — 便携压缩包
+- `release/IMA Bridge-0.3.3.dmg` — 标准安装包
+- `release/IMA Bridge-0.3.3-mac.zip` — 便携压缩包
 
 ### 构建 Windows 安装包
 
@@ -109,8 +110,8 @@ npm run dist:win
 ```
 
 产物：
-- `release/IMA Bridge Setup 0.2.7.exe` — 安装向导
-- `release/IMA Bridge 0.2.7.exe` — 便携版
+- `release/IMA Bridge Setup 0.3.3.exe` — 安装向导
+- `release/IMA Bridge 0.3.3.exe` — 便携版
 
 > 在 macOS 上构建 Windows 安装包需要安装 Wine 和 Mono，或使用 CI/CD（GitHub Actions 等）。如环境不支持，请在 Windows 机器上执行 `npm run dist:win`。
 

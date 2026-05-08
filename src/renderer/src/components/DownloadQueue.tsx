@@ -1,5 +1,6 @@
 import React from "react";
 import type { QueueItem } from "@core/types";
+import { EmptyState } from "./AppState";
 
 const MEDIA_TYPES: Record<number, string> = {
   1: "PDF",
@@ -31,6 +32,14 @@ function statusText(status: string): string {
   return map[status] || status;
 }
 
+function statusClass(status: string): string {
+  if (status === "done" || status === "synced") return "status ok";
+  if (status === "failed" || status === "sync_failed") return "status bad";
+  if (status === "skipped") return "status";
+  if (["downloading", "exporting", "uploading", "resolving", "preparing"].includes(status)) return "status info";
+  return "status";
+}
+
 function statusColor(status: string): string {
   if (status === "done" || status === "synced") return "var(--success)";
   if (status === "failed" || status === "sync_failed") return "var(--danger)";
@@ -48,60 +57,82 @@ type Props = {
 };
 
 export default function DownloadQueue({ queue, onRetry, onRemove, onOpenFolder, onClearCompleted }: Props) {
-  if (queue.length === 0) return null;
+  if (queue.length === 0) {
+    return (
+      <div className="card" style={{ padding: "16px", marginTop: "16px" }}>
+        <EmptyState
+          title="队列为空"
+          description="选择文档并点击「下载」或「同步」即可加入队列。"
+        />
+      </div>
+    );
+  }
 
   const pending = queue.filter((q) => q.status === "pending" || q.status === "downloading" || q.status === "resolving" || q.status === "exporting" || q.status === "preparing" || q.status === "uploading").length;
+  const done = queue.filter((q) => q.status === "done" || q.status === "synced").length;
   const failed = queue.filter((q) => q.status === "failed").length;
   const syncFailed = queue.filter((q) => q.status === "sync_failed").length;
   const skipped = queue.filter((q) => q.status === "skipped").length;
 
   return (
     <div className="card" style={{ padding: "16px", marginTop: "16px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ fontWeight: 600, fontSize: 16 }}>
-          下载队列 {pending > 0 && <span style={{ color: "var(--primary)" }}>({pending} 进行中)</span>}
-          {failed > 0 && <span style={{ color: "var(--danger)", marginLeft: 8 }}>({failed} 下载失败)</span>}
-          {syncFailed > 0 && <span style={{ color: "var(--danger)", marginLeft: 8 }}>({syncFailed} 同步失败)</span>}
-          {skipped > 0 && <span style={{ color: "var(--text-secondary)", marginLeft: 8 }}>({skipped} 已跳过)</span>}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+        <div className="stats-row" style={{ fontSize: 14, fontWeight: 600 }}>
+          <span style={{ color: "var(--text)" }}>下载队列</span>
+          {pending > 0 && <span className="status info" style={{ fontSize: 11 }}>{pending} 进行中</span>}
+          {done > 0 && <span className="status ok" style={{ fontSize: 11 }}>{done} 已完成</span>}
+          {failed > 0 && <span className="status bad" style={{ fontSize: 11 }}>{failed} 下载失败</span>}
+          {syncFailed > 0 && <span className="status bad" style={{ fontSize: 11 }}>{syncFailed} 同步失败</span>}
+          {skipped > 0 && <span className="status" style={{ fontSize: 11, color: "var(--text-secondary)" }}>{skipped} 已跳过</span>}
         </div>
         {onClearCompleted && queue.some((q) => q.status === "done" || q.status === "synced" || q.status === "skipped") && (
-          <button onClick={() => { if (confirm("确定清空已完成/已跳过的项？")) onClearCompleted(); }}>
+          <button className="small" onClick={() => { if (confirm("确定清空已完成/已跳过的项？")) onClearCompleted(); }}>
             清空已完成
           </button>
         )}
       </div>
-      <div style={{ maxHeight: 320, overflowY: "auto" }}>
-        <table>
+      <div style={{ maxHeight: 360, overflowY: "auto", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
+        <table style={{ fontSize: 12 }}>
           <thead>
             <tr>
-              <th>名称</th>
-              <th>类型</th>
-              <th>状态</th>
-              <th>路径</th>
-              <th>操作</th>
+              <th style={{ width: "40%" }}>名称</th>
+              <th style={{ width: 60 }}>类型</th>
+              <th style={{ width: 80 }}>状态</th>
+              <th style={{ width: "25%" }}>路径</th>
+              <th style={{ width: 160, minWidth: 140 }}>操作</th>
             </tr>
           </thead>
           <tbody>
             {queue.map((item) => (
               <tr key={item.id}>
                 <td>
-                  <div style={{ fontWeight: 500 }}>{item.title}</div>
-                  {item.error && <div style={{ fontSize: 12, color: "var(--danger)" }}>{item.error}</div>}
+                  <div className="truncate" style={{ fontWeight: 500, fontSize: 12 }} title={item.title}>{item.title}</div>
+                  {item.error && (
+                    <div className="truncate" style={{ fontSize: 11, color: "var(--danger)", marginTop: 2 }} title={item.error}>
+                      {item.error}
+                    </div>
+                  )}
                 </td>
-                <td><span className="pill">{MEDIA_TYPES[item.mediaType] || `类型${item.mediaType}`}</span></td>
-                <td style={{ color: statusColor(item.status), fontWeight: 500 }}>{statusText(item.status)}</td>
-                <td style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {item.localPath || item.sourcePath || "-"}
+                <td><span className="pill" style={{ fontSize: 10 }}>{MEDIA_TYPES[item.mediaType] || `类型${item.mediaType}`}</span></td>
+                <td>
+                  <span className={statusClass(item.status)} style={{ fontSize: 11, padding: "2px 6px" }}>
+                    {statusText(item.status)}
+                  </span>
                 </td>
                 <td>
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div className="truncate" style={{ fontSize: 11, color: "var(--text-secondary)" }} title={item.localPath || item.sourcePath || "-"}>
+                    {item.localPath || item.sourcePath || "-"}
+                  </div>
+                </td>
+                <td>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {(item.status === "failed" || item.status === "sync_failed" || item.status === "skipped") && (
-                      <button onClick={() => onRetry(item.id)}>重试</button>
+                      <button className="small" onClick={() => onRetry(item.id)}>重试</button>
                     )}
                     {item.localPath && (
-                      <button onClick={() => onOpenFolder(item.localPath!)}>打开</button>
+                      <button className="small" onClick={() => onOpenFolder(item.localPath!)}>打开</button>
                     )}
-                    <button onClick={() => onRemove(item.id)} style={{ color: "var(--danger)", borderColor: "var(--danger)" }}>移除</button>
+                    <button className="small danger" onClick={() => onRemove(item.id)}>移除</button>
                   </div>
                 </td>
               </tr>

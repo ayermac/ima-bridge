@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import type { DocumentItem, KnowledgeBase, FolderPathItem } from "@core/types";
+import { LoadingState, EmptyState } from "./AppState";
 
 const MEDIA_TYPES: Record<number, string> = {
   1: "PDF",
@@ -130,62 +131,65 @@ export default function DocumentList({
     onSyncSelected(docs);
   };
 
-  const canSync = (doc: DocumentItem): boolean => {
-    return canDownload(doc) && [1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 14, 15].includes(Number(doc.media_type));
-  };
-
   return (
     <div className="card" style={{ padding: "16px" }}>
+      {/* Header */}
       <div className="toolbar" style={{ marginBottom: 12, justifyContent: "space-between" }}>
-        <div>
-          <button onClick={onBack} style={{ marginRight: 10 }}>返回</button>
-          <span style={{ fontWeight: 600, fontSize: 16 }}>{base.name || "知识库文档"}</span>
-          <span style={{ marginLeft: 12, fontSize: 13, color: "var(--text-secondary)" }}>
-            {folderPath.map((item, index) => (
-              <React.Fragment key={item.id}>
-                {index > 0 && " / "}
-                <button
-                  onClick={() => onOpenBreadcrumb(index)}
-                  disabled={loading || index === folderPath.length - 1}
-                  style={{ height: 26, padding: "0 8px" }}
-                >
-                  {item.name || "根目录"}
-                </button>
-              </React.Fragment>
-            ))}
-          </span>
+        <div className="toolbar" style={{ gap: 10, flexWrap: "wrap" }}>
+          <button onClick={onBack} className="small">← 返回</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span className="section-title" style={{ fontSize: 14 }}>{base.name || "知识库文档"}</span>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+              {folderPath.map((item, index) => (
+                <React.Fragment key={item.id}>
+                  {index > 0 && <span style={{ color: "var(--border)", margin: "0 2px" }}>/</span>}
+                  <button
+                    onClick={() => onOpenBreadcrumb(index)}
+                    disabled={loading || index === folderPath.length - 1}
+                    className="small"
+                    style={{ padding: "2px 8px", fontWeight: index === folderPath.length - 1 ? 600 : 400, background: index === folderPath.length - 1 ? "var(--primary-soft)" : undefined, color: index === folderPath.length - 1 ? "var(--primary)" : undefined, borderColor: index === folderPath.length - 1 ? "transparent" : undefined }}
+                    title={item.name || "根目录"}
+                  >
+                    <span className="truncate" style={{ maxWidth: 120, display: "inline-block" }}>{item.name || "根目录"}</span>
+                  </button>
+                </React.Fragment>
+              ))}
+            </span>
+          </div>
         </div>
-        <button onClick={onRefresh} disabled={loading} className="primary">
+        <button onClick={onRefresh} disabled={loading} className="primary small">
           {loading ? "加载中..." : "刷新"}
         </button>
       </div>
 
-      <div className="toolbar" style={{ marginBottom: 12 }}>
+      {/* Search & Filter */}
+      <div className="toolbar" style={{ marginBottom: 12, padding: "10px 12px", background: "var(--bg)", borderRadius: "var(--radius-sm)" }}>
         <input
           type="search"
           placeholder="搜索文档..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ minWidth: 200 }}
+          style={{ minWidth: 180, maxWidth: 260, flexShrink: 0 }}
         />
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <button className={filter === "all" ? "primary" : ""} onClick={() => setFilter("all")}>全部</button>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          <button className={filter === "all" ? "primary small" : "small"} onClick={() => setFilter("all")}>全部</button>
           {types.map((t) => (
-            <button key={t} className={filter === String(t) ? "primary" : ""} onClick={() => setFilter(String(t))}>
+            <button key={t} className={filter === String(t) ? "primary small" : "small"} onClick={() => setFilter(String(t))}>
               {MEDIA_TYPES[t] || `类型${t}`}
             </button>
           ))}
         </div>
         {types.includes(11) && (
-          <div style={{ display: "flex", gap: 6 }}>
-            <button className={noteFormat === "md" ? "primary" : ""} onClick={() => onNoteFormatChange("md")}>MD</button>
-            <button className={noteFormat === "html" ? "primary" : ""} onClick={() => onNoteFormatChange("html")}>HTML</button>
+          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+            <button className={noteFormat === "md" ? "primary small" : "small"} onClick={() => onNoteFormatChange("md")}>MD</button>
+            <button className={noteFormat === "html" ? "primary small" : "small"} onClick={() => onNoteFormatChange("html")}>HTML</button>
           </div>
         )}
       </div>
 
-      <div className="toolbar" style={{ marginBottom: 12 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer" }}>
+      {/* Selection bar */}
+      <div className="toolbar" style={{ marginBottom: 12, padding: "8px 12px", background: "var(--border-light)", borderRadius: "var(--radius-sm)" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
           <input
             type="checkbox"
             checked={downloadable.length > 0 && downloadable.every((d) => selected.has(d.media_id))}
@@ -194,13 +198,15 @@ export default function DocumentList({
             }}
             onChange={(e) => selectAll(e.target.checked)}
           />
-          全选可下载项
+          全选
         </label>
-        <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-          当前层级：{filtered.filter((d) => d.is_folder).length} 个文件夹，{filtered.filter((d) => !d.is_folder).length} 个文档 · 已选 {selected.size} / {downloadable.length} 可下载
+        <span className="stats-row" style={{ flex: 1 }}>
+          <span>📁 {filtered.filter((d) => d.is_folder).length} 文件夹</span>
+          <span>📄 {filtered.filter((d) => !d.is_folder).length} 文档</span>
+          <span>✓ {selected.size}/{downloadable.length} 已选</span>
         </span>
         <button
-          className="primary"
+          className="primary small"
           disabled={selected.size === 0 || loading}
           onClick={handleDownloadSelected}
         >
@@ -208,7 +214,7 @@ export default function DocumentList({
         </button>
         {onSyncSelected && (
           <button
-            className="primary"
+            className="primary small"
             disabled={selected.size === 0 || loading || !syncEnabled}
             onClick={() => {
               if (!syncEnabled) {
@@ -224,20 +230,31 @@ export default function DocumentList({
         )}
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="empty">没有匹配的文档。</div>
-      ) : (
+      {loading && documents.length === 0 && (
+        <LoadingState title="正在加载文档..." description={`加载「${base.name}」内容中，请稍候`} />
+      )}
+      {!loading && documents.length === 0 && (
+        <EmptyState
+          title="当前层级没有文档"
+          description="该知识库或文件夹中尚未添加任何内容，或请尝试刷新。"
+          action={<button onClick={onRefresh} className="primary small">刷新</button>}
+        />
+      )}
+      {!loading && documents.length > 0 && filtered.length === 0 && (
+        <EmptyState title="没有匹配的文档" description="尝试调整搜索关键词或筛选条件。" />
+      )}
+      {!loading && documents.length > 0 && filtered.length > 0 && (
         <div style={{ overflowX: "auto" }}>
           <table>
             <thead>
               <tr>
-                <th style={{ width: 40 }}></th>
+                <th style={{ width: 36 }}></th>
                 <th>名称</th>
-                <th>类型</th>
-                <th>大小</th>
-                <th>更新时间</th>
-                <th>状态</th>
-                <th>操作</th>
+                <th style={{ width: 80 }}>类型</th>
+                <th style={{ width: 80 }}>大小</th>
+                <th style={{ width: 110 }}>更新时间</th>
+                <th style={{ width: 70 }}>状态</th>
+                <th style={{ width: 80 }}>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -246,33 +263,45 @@ export default function DocumentList({
                 const rowKey = doc.is_folder
                   ? `folder-${doc.folder_id || doc.media_id || index}`
                   : `doc-${doc.media_id || index}`;
+                const isFolder = doc.is_folder;
                 return (
-                  <tr key={rowKey}>
+                  <tr key={rowKey} style={{ background: isFolder ? "var(--border-light)" : undefined }}>
                     <td>
                       <input
                         type="checkbox"
                         checked={selected.has(doc.media_id)}
                         disabled={!ok}
                         onChange={() => toggleSelect(doc.media_id)}
+                        style={{ display: "block" }}
                       />
                     </td>
                     <td>
-                      <div style={{ fontWeight: 500 }}>{doc.is_folder ? "📁 " : ""}{doc.title || "未命名文件"}</div>
-                      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{doc._path || ""}</div>
+                      <div style={{ minWidth: 140, maxWidth: 320 }}>
+                        <div className="truncate" style={{ fontWeight: isFolder ? 600 : 500, fontSize: 13 }} title={doc.title || "未命名文件"}>
+                          {isFolder ? "📁 " : ""}{doc.title || "未命名文件"}
+                        </div>
+                        {doc._path && (
+                          <div className="truncate" style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }} title={doc._path}>
+                            {doc._path}
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    <td><span className="pill">{doc.is_folder ? "文件夹" : MEDIA_TYPES[doc.media_type] || `未知${doc.media_type}`}</span></td>
-                    <td>{formatSize(doc.file_size)}</td>
-                    <td>{formatTime(doc.update_time)}</td>
+                    <td><span className="pill">{isFolder ? "文件夹" : MEDIA_TYPES[doc.media_type] || `未知${doc.media_type}`}</span></td>
+                    <td style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{formatSize(doc.file_size)}</td>
+                    <td style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{formatTime(doc.update_time)}</td>
                     <td>
-                      <span className={doc.is_folder ? "status" : ok ? "status ok" : "status bad"}>{doc.is_folder ? "可进入" : ok ? "可访问" : "不支持"}</span>
+                      <span className={isFolder ? "status info" : ok ? "status ok" : "status bad"}>
+                        {isFolder ? "可进入" : ok ? "可访问" : "不支持"}
+                      </span>
                     </td>
                     <td>
-                      {doc.is_folder ? (
-                        <button onClick={() => onOpenFolder(doc)} disabled={loading || !doc.folder_id}>
+                      {isFolder ? (
+                        <button onClick={() => onOpenFolder(doc)} disabled={loading || !doc.folder_id} className="small">
                           打开
                         </button>
                       ) : (
-                        <button onClick={() => onDownload(doc)} disabled={!ok || loading}>
+                        <button onClick={() => onDownload(doc)} disabled={!ok || loading} className="small">
                           下载
                         </button>
                       )}
@@ -284,7 +313,7 @@ export default function DocumentList({
           </table>
           {hasMore && (
             <div style={{ display: "flex", justifyContent: "center", paddingTop: 14 }}>
-              <button onClick={onLoadMore} disabled={loading} className="primary">
+              <button onClick={onLoadMore} disabled={loading} className="primary small">
                 {loading ? "加载中..." : "加载更多"}
               </button>
             </div>

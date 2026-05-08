@@ -1,0 +1,29 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" fill-rule="evenodd">
+    <!-- star burst -->
+    <path d="M60 14 L63 22 L71 20 L66 26 L74 30 L65 32 L68 40 L60 34 L52 40 L55 32 L46 30 L54 26 L49 20 L57 22 Z" fill="#fbbf24" opacity="0.9"/>
+    <!-- body -->
+    <rect x="32" y="46" width="56" height="50" rx="26" fill="#16a34a"/>
+    <!-- head -->
+    <circle cx="60" cy="48" r="26" fill="#16a34a"/>
+    <!-- ears -->
+    <ellipse cx="40" cy="32" rx="9" ry="13" fill="#16a34a" transform="rotate(-22 40 32)"/>
+    <ellipse cx="80" cy="32" rx="9" ry="13" fill="#16a34a" transform="rotate(22 80 32)"/>
+    <!-- face -->
+    <circle cx="52" cy="45" r="5.5" fill="#ffffff"/>
+    <circle cx="68" cy="45" r="5.5" fill="#ffffff"/>
+    <circle cx="52" cy="46" r="3" fill="#111827"/>
+    <circle cx="68" cy="46" r="3" fill="#111827"/>
+    <!-- big smile -->
+    <path d="M53 54 Q60 62 67 54" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <!-- raised arms -->
+    <ellipse cx="26" cy="52" rx="8" ry="14" fill="#16a34a" transform="rotate(-35 26 52)"/>
+    <ellipse cx="94" cy="52" rx="8" ry="14" fill="#16a34a" transform="rotate(35 94 52)"/>
+    <!-- blush -->
+    <circle cx="44" cy="52" r="4" fill="#ffb3ba" opacity="0.45"/>
+    <circle cx="76" cy="52" r="4" fill="#ffb3ba" opacity="0.45"/>
+    <!-- paws -->
+    <ellipse cx="42" cy="90" rx="10" ry="6" fill="#15803d"/>
+    <ellipse cx="78" cy="90" rx="10" ry="6" fill="#15803d"/>
+  </g>
+</svg>

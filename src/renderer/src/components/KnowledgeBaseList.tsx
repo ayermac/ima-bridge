@@ -1,5 +1,6 @@
 import React from "react";
 import type { KnowledgeBase } from "@core/types";
+import { LoadingState, EmptyState } from "./AppState";
 
 function formatSize(value: string | number): string {
   const bytes = Number(value || 0);
@@ -38,56 +39,71 @@ export default function KnowledgeBaseList({ bases, loading, onRefresh, onOpenBas
   return (
     <div className="card" style={{ padding: "16px" }}>
       <div className="toolbar" style={{ marginBottom: 12, justifyContent: "space-between" }}>
-        <div style={{ fontWeight: 600, fontSize: 16 }}>知识库列表</div>
-        <button onClick={onRefresh} disabled={loading} className="primary">
+        <div className="section-title">知识库列表</div>
+        <button onClick={onRefresh} disabled={loading} className="primary small">
           {loading ? "加载中..." : "刷新"}
         </button>
       </div>
-      {bases.length === 0 ? (
-        <div className="empty">暂无知识库，请先登录 IMA。</div>
-      ) : (
+      {loading && bases.length === 0 && (
+        <LoadingState title="正在加载知识库..." description="请稍候" />
+      )}
+      {!loading && bases.length === 0 && (
+        <EmptyState
+          title="暂无知识库"
+          description="请先登录 IMA 账号，然后点击刷新加载知识库列表。"
+          action={<button onClick={onRefresh} className="primary small">刷新</button>}
+        />
+      )}
+      {!loading && bases.length > 0 && (
         <div style={{ overflowX: "auto" }}>
           <table>
             <thead>
               <tr>
-                <th>分组</th>
+                <th style={{ width: 40 }}></th>
                 <th>名称</th>
-                <th>大小</th>
-                <th>文件数</th>
-                <th>成员</th>
-                <th>更新时间</th>
-                <th>权限</th>
-                <th>操作</th>
+                <th style={{ width: 70 }}>分组</th>
+                <th style={{ width: 80 }}>大小</th>
+                <th style={{ width: 70 }}>文件</th>
+                <th style={{ width: 70 }}>成员</th>
+                <th style={{ width: 110 }}>更新时间</th>
+                <th style={{ width: 80 }}>权限</th>
+                <th style={{ width: 70 }}>操作</th>
               </tr>
             </thead>
             <tbody>
               {bases.map((base) => (
                 <tr key={base.id} className="clickableRow" onClick={() => onOpenBase(base)}>
-                  <td><span className="pill">{groupName(base.type)}</span></td>
                   <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      {base.cover_url ? (
-                        <img src={base.cover_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover" }} />
-                      ) : (
-                        <div style={{ width: 32, height: 32, borderRadius: 6, background: "#e5e7eb" }} />
-                      )}
-                      <div>
-                        <div style={{ fontWeight: 500 }}>{base.name || "未命名知识库"}</div>
-                        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{base.description || base.creator_name || ""}</div>
+                    {base.cover_url ? (
+                      <img src={base.cover_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", display: "block" }} />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: 6, background: "var(--border-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "var(--text-muted)" }}>
+                        KB
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <div style={{ minWidth: 160, maxWidth: 300 }}>
+                      <div className="truncate" style={{ fontWeight: 500, fontSize: 13 }} title={base.name || "未命名知识库"}>
+                        {base.name || "未命名知识库"}
+                      </div>
+                      <div className="truncate" style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }} title={base.description || base.creator_name || ""}>
+                        {base.description || base.creator_name || ""}
                       </div>
                     </div>
                   </td>
+                  <td><span className="pill">{groupName(base.type)}</span></td>
                   <td>{formatSize(base.size)}</td>
                   <td>{base.file_count || "-"}</td>
                   <td>{base.member_count || "-"}</td>
-                  <td>{base.status_toast || formatTime(base.update_time)}</td>
+                  <td style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{base.status_toast || formatTime(base.update_time)}</td>
                   <td>
                     <span className={base.access_status >= 2 ? "status ok" : "status bad"}>
                       {base.access_status >= 2 ? "可访问" : "受限"}
                     </span>
                   </td>
                   <td>
-                    <button className="primary" onClick={(e) => { e.stopPropagation(); onOpenBase(base); }}>
+                    <button className="primary small" onClick={(e) => { e.stopPropagation(); onOpenBase(base); }}>
                       进入
                     </button>
                   </td>

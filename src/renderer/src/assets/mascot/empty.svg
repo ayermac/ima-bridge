@@ -1,0 +1,26 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" fill-rule="evenodd">
+    <!-- box -->
+    <rect x="68" y="52" width="32" height="28" rx="4" stroke="#e5e7eb" stroke-width="2.5" fill="#f8f9fb"/>
+    <path d="M68 58 L100 58" stroke="#e5e7eb" stroke-width="2.5"/>
+    <!-- body -->
+    <rect x="28" y="48" width="48" height="44" rx="22" fill="#2563eb"/>
+    <!-- head -->
+    <circle cx="52" cy="50" r="22" fill="#2563eb"/>
+    <!-- ears -->
+    <ellipse cx="36" cy="36" rx="7.5" ry="11" fill="#2563eb" transform="rotate(-22 36 36)"/>
+    <ellipse cx="68" cy="36" rx="7.5" ry="11" fill="#2563eb" transform="rotate(22 68 36)"/>
+    <!-- face -->
+    <circle cx="45" cy="47" r="4.5" fill="#ffffff"/>
+    <circle cx="59" cy="47" r="4.5" fill="#ffffff"/>
+    <circle cx="45" cy="48" r="2.5" fill="#111827"/>
+    <circle cx="59" cy="48" r="2.5" fill="#111827"/>
+    <!-- small mouth (neutral/curious) -->
+    <circle cx="52" cy="56" r="2" fill="#ffffff" opacity="0.7"/>
+    <!-- blush -->
+    <circle cx="39" cy="53" r="3.5" fill="#ffb3ba" opacity="0.45"/>
+    <circle cx="65" cy="53" r="3.5" fill="#ffb3ba" opacity="0.45"/>
+    <!-- looking at box -->
+    <path d="M62 48 Q66 46 68 48" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+  </g>
+</svg>
