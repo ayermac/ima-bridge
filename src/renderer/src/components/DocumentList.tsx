@@ -134,28 +134,24 @@ export default function DocumentList({
   return (
     <div className="card" style={{ padding: "16px" }}>
       {/* Header */}
-      <div className="toolbar" style={{ marginBottom: 12, justifyContent: "space-between" }}>
-        <div className="toolbar" style={{ gap: 10, flexWrap: "wrap" }}>
+      <div className="doc-toolbar doc-toolbar--primary">
+        <div className="doc-breadcrumb">
           <button onClick={onBack} className="small">← 返回</button>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span className="section-title" style={{ fontSize: 14 }}>{base.name || "知识库文档"}</span>
-            <span style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-              {folderPath.map((item, index) => (
-                <React.Fragment key={item.id}>
-                  {index > 0 && <span style={{ color: "var(--border)", margin: "0 2px" }}>/</span>}
-                  <button
-                    onClick={() => onOpenBreadcrumb(index)}
-                    disabled={loading || index === folderPath.length - 1}
-                    className="small"
-                    style={{ padding: "2px 8px", fontWeight: index === folderPath.length - 1 ? 600 : 400, background: index === folderPath.length - 1 ? "var(--primary-soft)" : undefined, color: index === folderPath.length - 1 ? "var(--primary)" : undefined, borderColor: index === folderPath.length - 1 ? "transparent" : undefined }}
-                    title={item.name || "根目录"}
-                  >
-                    <span className="truncate" style={{ maxWidth: 120, display: "inline-block" }}>{item.name || "根目录"}</span>
-                  </button>
-                </React.Fragment>
-              ))}
-            </span>
-          </div>
+          <span className="doc-breadcrumb__sep">/</span>
+          <span className="section-title" style={{ fontSize: 14, flexShrink: 0 }}>{base.name || "知识库文档"}</span>
+          {folderPath.map((item, index) => (
+            <React.Fragment key={item.id}>
+              {index > 0 && <span className="doc-breadcrumb__sep">/</span>}
+              <button
+                onClick={() => onOpenBreadcrumb(index)}
+                disabled={loading || index === folderPath.length - 1}
+                className={`doc-breadcrumb__btn${index === folderPath.length - 1 ? " doc-breadcrumb__btn--current" : ""}`}
+                title={item.name || "根目录"}
+              >
+                <span className="truncate" style={{ maxWidth: 120, display: "inline-block" }}>{item.name || "根目录"}</span>
+              </button>
+            </React.Fragment>
+          ))}
         </div>
         <button onClick={onRefresh} disabled={loading} className="primary small">
           {loading ? "加载中..." : "刷新"}
@@ -163,7 +159,7 @@ export default function DocumentList({
       </div>
 
       {/* Search & Filter */}
-      <div className="toolbar" style={{ marginBottom: 12, padding: "10px 12px", background: "var(--bg)", borderRadius: "var(--radius-sm)" }}>
+      <div className="doc-toolbar doc-toolbar--secondary">
         <input
           type="search"
           placeholder="搜索文档..."
@@ -171,7 +167,7 @@ export default function DocumentList({
           onChange={(e) => setSearch(e.target.value)}
           style={{ minWidth: 180, maxWidth: 260, flexShrink: 0 }}
         />
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        <div className="toolbar">
           <button className={filter === "all" ? "primary small" : "small"} onClick={() => setFilter("all")}>全部</button>
           {types.map((t) => (
             <button key={t} className={filter === String(t) ? "primary small" : "small"} onClick={() => setFilter(String(t))}>
@@ -180,7 +176,7 @@ export default function DocumentList({
           ))}
         </div>
         {types.includes(11) && (
-          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+          <div className="toolbar" style={{ marginLeft: "auto" }}>
             <button className={noteFormat === "md" ? "primary small" : "small"} onClick={() => onNoteFormatChange("md")}>MD</button>
             <button className={noteFormat === "html" ? "primary small" : "small"} onClick={() => onNoteFormatChange("html")}>HTML</button>
           </div>
@@ -188,8 +184,8 @@ export default function DocumentList({
       </div>
 
       {/* Selection bar */}
-      <div className="toolbar" style={{ marginBottom: 12, padding: "8px 12px", background: "var(--border-light)", borderRadius: "var(--radius-sm)" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
+      <div className="doc-toolbar doc-toolbar--selection">
+        <label className="select-all">
           <input
             type="checkbox"
             checked={downloadable.length > 0 && downloadable.every((d) => selected.has(d.media_id))}
@@ -201,9 +197,9 @@ export default function DocumentList({
           全选
         </label>
         <span className="stats-row" style={{ flex: 1 }}>
-          <span>📁 {filtered.filter((d) => d.is_folder).length} 文件夹</span>
-          <span>📄 {filtered.filter((d) => !d.is_folder).length} 文档</span>
-          <span>✓ {selected.size}/{downloadable.length} 已选</span>
+          <span>{filtered.filter((d) => d.is_folder).length} 文件夹</span>
+          <span>{filtered.filter((d) => !d.is_folder).length} 文档</span>
+          <span>{selected.size}/{downloadable.length} 已选</span>
         </span>
         <button
           className="primary small"
@@ -244,7 +240,7 @@ export default function DocumentList({
         <EmptyState title="没有匹配的文档" description="尝试调整搜索关键词或筛选条件。" />
       )}
       {!loading && documents.length > 0 && filtered.length > 0 && (
-        <div style={{ overflowX: "auto" }}>
+        <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -278,7 +274,7 @@ export default function DocumentList({
                     <td>
                       <div style={{ minWidth: 140, maxWidth: 320 }}>
                         <div className="truncate" style={{ fontWeight: isFolder ? 600 : 500, fontSize: 13 }} title={doc.title || "未命名文件"}>
-                          {isFolder ? "📁 " : ""}{doc.title || "未命名文件"}
+                          {doc.title || "未命名文件"}
                         </div>
                         {doc._path && (
                           <div className="truncate" style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }} title={doc._path}>
@@ -290,7 +286,7 @@ export default function DocumentList({
                     <td><span className="pill">{isFolder ? "文件夹" : MEDIA_TYPES[doc.media_type] || `未知${doc.media_type}`}</span></td>
                     <td style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{formatSize(doc.file_size)}</td>
                     <td style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{formatTime(doc.update_time)}</td>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       <span className={isFolder ? "status info" : ok ? "status ok" : "status bad"}>
                         {isFolder ? "可进入" : ok ? "可访问" : "不支持"}
                       </span>

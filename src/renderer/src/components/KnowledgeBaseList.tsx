@@ -55,62 +55,45 @@ export default function KnowledgeBaseList({ bases, loading, onRefresh, onOpenBas
         />
       )}
       {!loading && bases.length > 0 && (
-        <div style={{ overflowX: "auto" }}>
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: 40 }}></th>
-                <th>名称</th>
-                <th style={{ width: 70 }}>分组</th>
-                <th style={{ width: 80 }}>大小</th>
-                <th style={{ width: 70 }}>文件</th>
-                <th style={{ width: 70 }}>成员</th>
-                <th style={{ width: 110 }}>更新时间</th>
-                <th style={{ width: 80 }}>权限</th>
-                <th style={{ width: 70 }}>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bases.map((base) => (
-                <tr key={base.id} className="clickableRow" onClick={() => onOpenBase(base)}>
-                  <td>
-                    {base.cover_url ? (
-                      <img src={base.cover_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: "cover", display: "block" }} />
-                    ) : (
-                      <div style={{ width: 32, height: 32, borderRadius: 6, background: "var(--border-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "var(--text-muted)" }}>
-                        KB
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <div style={{ minWidth: 160, maxWidth: 300 }}>
-                      <div className="truncate" style={{ fontWeight: 500, fontSize: 13 }} title={base.name || "未命名知识库"}>
-                        {base.name || "未命名知识库"}
-                      </div>
-                      <div className="truncate" style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }} title={base.description || base.creator_name || ""}>
-                        {base.description || base.creator_name || ""}
-                      </div>
-                    </div>
-                  </td>
-                  <td><span className="pill">{groupName(base.type)}</span></td>
-                  <td>{formatSize(base.size)}</td>
-                  <td>{base.file_count || "-"}</td>
-                  <td>{base.member_count || "-"}</td>
-                  <td style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{base.status_toast || formatTime(base.update_time)}</td>
-                  <td>
-                    <span className={base.access_status >= 2 ? "status ok" : "status bad"}>
-                      {base.access_status >= 2 ? "可访问" : "受限"}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="primary small" onClick={(e) => { e.stopPropagation(); onOpenBase(base); }}>
-                      进入
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="kb-grid">
+          {bases.map((base) => (
+            <div key={base.id} className="kb-tile" onClick={() => onOpenBase(base)}>
+              <div className="kb-tile__cover">
+                {base.cover_url ? (
+                  <img src={base.cover_url} alt="" />
+                ) : (
+                  <div className="kb-tile__cover-fallback">KB</div>
+                )}
+              </div>
+              <div className="kb-tile__body">
+                <div className="kb-tile__name" title={base.name || "未命名知识库"}>
+                  {base.name || "未命名知识库"}
+                </div>
+                {(base.description || base.creator_name) && (
+                  <div className="kb-tile__desc" title={base.description || base.creator_name}>
+                    {base.description || base.creator_name}
+                  </div>
+                )}
+                <div className="kb-tile__meta">
+                  <span className="pill">{groupName(base.type)}</span>
+                  <span className="kb-tile__stat">{formatSize(base.size)}</span>
+                  <span className="kb-tile__stat">{base.file_count || 0} 文件</span>
+                  {base.member_count > 0 && <span className="kb-tile__stat">{base.member_count} 人</span>}
+                </div>
+                <div className="kb-tile__footer">
+                  <span className={base.access_status >= 2 ? "status ok" : "status bad"}>
+                    {base.access_status >= 2 ? "可访问" : "受限"}
+                  </span>
+                  <span className="kb-tile__time">{base.status_toast || formatTime(base.update_time)}</span>
+                </div>
+              </div>
+              <div className="kb-tile__action">
+                <button className="primary small" onClick={(e) => { e.stopPropagation(); onOpenBase(base); }}>
+                  进入
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

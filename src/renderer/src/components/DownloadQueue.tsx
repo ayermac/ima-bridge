@@ -59,7 +59,7 @@ type Props = {
 export default function DownloadQueue({ queue, onRetry, onRemove, onOpenFolder, onClearCompleted }: Props) {
   if (queue.length === 0) {
     return (
-      <div className="card" style={{ padding: "16px", marginTop: "16px" }}>
+      <div className="card" style={{ padding: "16px" }}>
         <EmptyState
           title="队列为空"
           description="选择文档并点击「下载」或「同步」即可加入队列。"
@@ -75,8 +75,8 @@ export default function DownloadQueue({ queue, onRetry, onRemove, onOpenFolder, 
   const skipped = queue.filter((q) => q.status === "skipped").length;
 
   return (
-    <div className="card" style={{ padding: "16px", marginTop: "16px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+    <div className="card" style={{ padding: "16px" }}>
+      <div className="doc-toolbar doc-toolbar--primary" style={{ marginBottom: 12 }}>
         <div className="stats-row" style={{ fontSize: 14, fontWeight: 600 }}>
           <span style={{ color: "var(--text)" }}>下载队列</span>
           {pending > 0 && <span className="status info" style={{ fontSize: 11 }}>{pending} 进行中</span>}
@@ -91,7 +91,7 @@ export default function DownloadQueue({ queue, onRetry, onRemove, onOpenFolder, 
           </button>
         )}
       </div>
-      <div style={{ maxHeight: 360, overflowY: "auto", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
+      <div className="table-wrap">
         <table style={{ fontSize: 12 }}>
           <thead>
             <tr>
@@ -115,9 +115,21 @@ export default function DownloadQueue({ queue, onRetry, onRemove, onOpenFolder, 
                 </td>
                 <td><span className="pill" style={{ fontSize: 10 }}>{MEDIA_TYPES[item.mediaType] || `类型${item.mediaType}`}</span></td>
                 <td>
-                  <span className={statusClass(item.status)} style={{ fontSize: 11, padding: "2px 6px" }}>
-                    {statusText(item.status)}
-                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span className={statusClass(item.status)} style={{ fontSize: 11, padding: "2px 6px", whiteSpace: "nowrap" }}>
+                      {statusText(item.status)}
+                    </span>
+                    {item.progress !== undefined && item.progress >= 0 && (
+                      <div style={{ width: 60, height: 4, background: "var(--border)", borderRadius: 2, overflow: "hidden" }}>
+                        <div style={{ width: `${Math.min(100, item.progress)}%`, height: "100%", background: "var(--primary)", borderRadius: 2, transition: "width 0.3s ease" }} />
+                      </div>
+                    )}
+                    {item.progress === undefined && ["downloading", "uploading", "exporting", "resolving", "preparing"].includes(item.status) && (
+                      <div style={{ width: 60, height: 4, background: "var(--border)", borderRadius: 2, overflow: "hidden" }}>
+                        <div className="progress-bar-indeterminate" style={{ height: "100%", background: "var(--primary)", borderRadius: 2, width: "40%" }} />
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td>
                   <div className="truncate" style={{ fontSize: 11, color: "var(--text-secondary)" }} title={item.localPath || item.sourcePath || "-"}>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import type { ImaAccountInfo, ElectronRuntimeApi, ImaOpenApiConfigStatus, DuplicatePolicy } from "@runtime/adapter";
+import type { ImaAccountInfo, ElectronRuntimeApi, ImaOpenApiConfigStatus, DuplicatePolicy, LoginProbeStatus } from "@runtime/adapter";
 
 const api: ElectronRuntimeApi = (typeof window !== "undefined" && (window as unknown as Record<string, unknown>).electronRuntime)
   ? ((window as unknown as Record<string, unknown>).electronRuntime as ElectronRuntimeApi)
@@ -7,17 +7,24 @@ const api: ElectronRuntimeApi = (typeof window !== "undefined" && (window as unk
 
 export function useAccountInfo() {
   const [account, setAccount] = useState<ImaAccountInfo | null>(null);
+  const [loginWindowClosedCount, setLoginWindowClosedCount] = useState(0);
 
   useEffect(() => {
     if (!api) return;
     api.getAccountInfo().then(setAccount).catch(() => setAccount(null));
-    const unsub = api.onAccountInfoChanged((info) => setAccount(info));
-    return unsub;
+    const unsubAccount = api.onAccountInfoChanged((info) => setAccount(info));
+    const unsubLoginClosed = api.onLoginWindowClosed(() => {
+      setLoginWindowClosedCount((count) => count + 1);
+    });
+    return () => {
+      unsubAccount();
+      unsubLoginClosed();
+    };
   }, []);
 
-  const openLogin = useCallback(() => {
-    if (!api) return;
-    api.openLoginWindow();
+  const openLogin = useCallback(async () => {
+    if (!api) throw new Error("Runtime not available");
+    await api.openLoginWindow();
   }, []);
 
   const closeLogin = useCallback(() => {
@@ -30,7 +37,20 @@ export function useAccountInfo() {
     api.clearAccountInfo().then(() => setAccount(null));
   }, []);
 
-  return { account, openLogin, closeLogin, clearLogin };
+  const manualLogin = useCallback((info: ImaAccountInfo) => {
+    if (!api) return;
+    api.setAccountInfo(info).then(() => setAccount(info));
+  }, []);
+
+  const checkLoginStatus = useCallback(async (): Promise<LoginProbeStatus | null> => {
+    if (!api) return null;
+    const status = await api.getLoginProbeStatus();
+    const info = await api.getAccountInfo();
+    if (info) setAccount(info);
+    return status;
+  }, []);
+
+  return { account, openLogin, closeLogin, clearLogin, checkLoginStatus, manualLogin, loginWindowClosedCount };
 }
 
 export async function createImaWebApi(account: ImaAccountInfo) {
@@ -41,10 +61,18 @@ export async function createImaWebApi(account: ImaAccountInfo) {
       headers: init?.headers as Record<string, string> | undefined,
       body: init?.body as string | undefined,
     });
-    return result;
+    // Wrap IPC result into a Response-like object for core code compatibility
+    return {
+      ok: result.ok,
+      status: result.status,
+      statusText: String(result.status),
+      headers: new Headers(result.headers),
+      text: async () => result.text,
+      json: async () => result.data,
+    } as unknown as Response;
   };
   const { ImaWebApi } = await import("@core/ima-web-api");
-  return new ImaWebApi(account, fetchViaMain);
+  return new ImaWebApi(account, fetchViaMain, api.downloadBinaryBase64);
 }
 
 export function useRuntime() {

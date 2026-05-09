@@ -48,7 +48,6 @@ export default function TargetKbSelector({
       <button
         disabled
         className="small"
-        style={{ opacity: 0.6, cursor: "not-allowed" }}
         title="请在设置中配置 IMA_OPENAPI_CLIENTID 和 IMA_OPENAPI_APIKEY"
       >
         OpenAPI 未配置
@@ -64,18 +63,18 @@ export default function TargetKbSelector({
         {selected ? `同步到: ${selected.name}` : "选择目标知识库"}
       </button>
       {open && (
-        <div className="dropdown" style={{ top: 36, left: 0, minWidth: 280, maxWidth: 360 }}>
+        <div className="dropdown" style={{ top: 36, left: 0 }}>
           {loading && (
-            <div style={{ padding: "14px 16px", fontSize: 13, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="list-loading" style={{ padding: "14px 16px" }}>
               <div className="list-loading__spinner" style={{ width: 14, height: 14 }} />
               加载中...
             </div>
           )}
           {error && (
-            <div style={{ padding: "12px 16px", fontSize: 13, color: "var(--danger)" }}>{error}</div>
+            <div className="dropdown__empty" style={{ color: "var(--danger)" }}>{error}</div>
           )}
           {!loading && !error && bases.length === 0 && (
-            <div style={{ padding: "12px 16px" }}>
+            <div className="dropdown__empty">
               <EmptyState title="没有可添加的知识库" description="请确认 OpenAPI 配置正确，或刷新列表。" />
             </div>
           )}
@@ -89,7 +88,7 @@ export default function TargetKbSelector({
               className={`dropdown__item${base.id === selectedId ? " dropdown__item--active" : ""}`}
             >
               <span className="truncate" style={{ flex: 1 }} title={base.name}>{base.name}</span>
-              {base.id === selectedId && <span style={{ fontSize: 12, color: "var(--primary)" }}>✓</span>}
+              {base.id === selectedId && <span className="dropdown__check">✓</span>}
             </div>
           ))}
           <div className="dropdown__footer" onClick={() => load()}>

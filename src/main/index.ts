@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
 import path from "path";
-import { createLoginWindow, closeLoginWindow, getLoginWebContents } from "./login-window";
+import { createLoginWindow, closeLoginWindow, getLoginWebContents, notifyAccountInfo } from "./login-window";
 import { setupIpcHandlers } from "./ipc";
+import { loadAccountInfo } from "./settings-store";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -15,6 +16,7 @@ function createMainWindow(): BrowserWindow {
       preload: path.join(__dirname, "../preload/index.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
       webSecurity: true,
     },
     titleBarStyle: "hiddenInset",
@@ -35,6 +37,12 @@ function createMainWindow(): BrowserWindow {
 app.whenReady().then(() => {
   mainWindow = createMainWindow();
   setupIpcHandlers(mainWindow);
+
+  // Restore persisted login state
+  const savedAccount = loadAccountInfo();
+  if (savedAccount) {
+    notifyAccountInfo(savedAccount);
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

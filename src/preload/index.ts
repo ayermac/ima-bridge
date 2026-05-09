@@ -1,12 +1,14 @@
 import { contextBridge, ipcRenderer } from "electron";
 import path from "path";
-import type { ImaAccountInfo, ElectronRuntimeApi } from "@runtime/adapter";
+import type { ImaAccountInfo, ElectronRuntimeApi, ApiLogEntry } from "@runtime/adapter";
 
 const api: ElectronRuntimeApi = {
   openLoginWindow: () => ipcRenderer.invoke("ima:openLoginWindow"),
   closeLoginWindow: () => ipcRenderer.invoke("ima:closeLoginWindow"),
   getAccountInfo: () => ipcRenderer.invoke("ima:getAccountInfo"),
+  getLoginProbeStatus: () => ipcRenderer.invoke("ima:getLoginProbeStatus"),
   clearAccountInfo: () => ipcRenderer.invoke("ima:clearAccountInfo"),
+  setAccountInfo: (info: ImaAccountInfo) => ipcRenderer.invoke("ima:setAccountInfo", info),
   chooseDirectory: () => ipcRenderer.invoke("ima:chooseDirectory"),
   saveFile: (filePath: string, data: string) => ipcRenderer.invoke("ima:saveFile", filePath, data),
   downloadUrl: (url: string, filePath: string) => ipcRenderer.invoke("ima:downloadUrl", url, filePath),
@@ -42,16 +44,22 @@ const api: ElectronRuntimeApi = {
     ipcRenderer.on("ima:openApiConfigChanged", handler);
     return () => ipcRenderer.removeListener("ima:openApiConfigChanged", handler);
   },
+  onApiLog: (callback) => {
+    const handler = (_event: unknown, entry: ApiLogEntry) => callback(entry);
+    ipcRenderer.on("ima:apiLog", handler);
+    return () => ipcRenderer.removeListener("ima:apiLog", handler);
+  },
   apiFetch: async (url: string, init: { method?: string; headers?: Record<string, string>; body?: string }) => {
     const result = await ipcRenderer.invoke("ima:apiFetch", url, init);
     return {
       ok: result.ok,
       status: result.status,
-      json: async () => result.data,
-      text: async () => result.text,
-      headers: new Map(Object.entries(result.headers)),
-    } as unknown as Response;
+      data: result.data,
+      text: result.text,
+      headers: result.headers as Record<string, string>,
+    };
   },
+  downloadBinaryBase64: (url: string, headers?: Record<string, string>) => ipcRenderer.invoke("ima:downloadBinaryBase64", url, headers),
 };
 
 contextBridge.exposeInMainWorld("electronRuntime", api);

@@ -169,6 +169,7 @@ export type QueueItem = {
   localPath?: string;
   targetKnowledgeBaseId?: string;
   error?: string;
+  progress?: number;
   createdAt: number;
   updatedAt: number;
 };

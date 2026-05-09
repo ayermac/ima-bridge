@@ -51,6 +51,7 @@ export type CosUploadOptions = {
   startTime?: string;
   expiredTime?: string;
   timeoutMs?: number;
+  onProgress?: (uploaded: number, total: number) => void;
 };
 
 export function uploadToCos(options: CosUploadOptions): Promise<void> {
@@ -70,6 +71,7 @@ export function uploadToCos(options: CosUploadOptions): Promise<void> {
     } = options;
 
     const fileContent = fs.readFileSync(filePath);
+    options.onProgress?.(0, fileContent.length);
     const hostname = `${bucket}.cos.${region}.myqcloud.com`;
     const pathname = `/${cosKey}`;
 
@@ -120,6 +122,7 @@ export function uploadToCos(options: CosUploadOptions): Promise<void> {
           if (settled) return;
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             settled = true;
+            options.onProgress?.(fileContent.length, fileContent.length);
             resolve();
           } else {
             finish(new Error(`COS 上传失败 HTTP ${res.statusCode}: ${body.slice(0, 500)}`));

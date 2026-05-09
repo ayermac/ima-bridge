@@ -1,9 +1,36 @@
+type DownloadBinaryFn = (url: string) => Promise<{ base64: string; contentType: string }>;
+
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+async function downloadImageAsDataUri(url: string, downloadBinary: DownloadBinaryFn): Promise<string | null> {
+  try {
+    const result = await downloadBinary(url);
+    return `data:${result.contentType};base64,${result.base64}`;
+  } catch {
+    return null;
+  }
+}
+
+function collectImageUrls(content: unknown, linkMap?: Record<string, string>): Set<string> {
+  const urls = new Set<string>();
+  const blocks = parseNotebookContent(content);
+  for (const block of blocks) {
+    const b = block as Record<string, unknown>;
+    for (const child of (b.children as unknown[]) || []) {
+      const c = child as Record<string, unknown>;
+      if (c.type === "cloud_image" && c.url) {
+        const resolved = linkFromMap(String(c.url), linkMap);
+        if (resolved) urls.add(resolved);
+      }
+    }
+  }
+  return urls;
 }
 
 function linkFromMap(url: string, linkMap?: Record<string, string>): string {
@@ -59,7 +86,7 @@ function blockTag(type: string): string {
   return /^h[1-6]$/.test(type) ? type : "p";
 }
 
-export function notebookContentToHtml(content: unknown, title: string, linkMap?: Record<string, string>): string {
+export async function notebookContentToHtml(content: unknown, title: string, linkMap?: Record<string, string>, downloadBinary?: DownloadBinaryFn): Promise<string> {
   const blocks = parseNotebookContent(content);
   if (blocks.length === 0) {
     return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head><body><pre>${escapeHtml(content)}</pre></body></html>`;
@@ -98,6 +125,31 @@ export function notebookContentToHtml(content: unknown, title: string, linkMap?:
   }
 
   closeList();
+
+  // 下载笔记中的图片并嵌入为 base64
+  if (downloadBinary) {
+    const imageUrls = collectImageUrls(content, linkMap);
+    if (imageUrls.size > 0) {
+      const entries = await Promise.all(
+        Array.from(imageUrls).map(async (url) => {
+          try {
+            const dataUri = await downloadImageAsDataUri(url, downloadBinary);
+            return [url, dataUri] as const;
+          } catch {
+            return [url, null] as const;
+          }
+        })
+      );
+      for (const [url, dataUri] of entries) {
+        if (dataUri) {
+          const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const joined = html.join("\n");
+          html.length = 0;
+          html.push(joined.replace(new RegExp(escaped, "g"), dataUri));
+        }
+      }
+    }
+  }
 
   return `<!doctype html>
 <html lang="zh-CN">

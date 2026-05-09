@@ -2,6 +2,14 @@ import type { RuntimeAdapter, WebSessionProvider, ImaAccountInfo, KnowledgeBase,
 
 export type { RuntimeAdapter, WebSessionProvider, ImaAccountInfo, KnowledgeBase, DuplicatePolicy };
 
+export type ApiFetchResult = {
+  ok: boolean;
+  status: number;
+  data: unknown;
+  text: string;
+  headers: Record<string, string>;
+};
+
 export type ImaOpenApiConfigStatus = {
   configured: boolean;
   hasClientId: boolean;
@@ -30,12 +38,38 @@ export type QueuePersistedState = {
   targetKnowledgeBaseId: string | null;
 };
 
+export type LoginProbeStatus = {
+  windowOpen: boolean;
+  href?: string;
+  title?: string;
+  readyState?: string;
+  hasAccount: boolean;
+  localStorageKeys: string[];
+  sessionStorageKeys: string[];
+  cookieNames: string[];
+  pageSignals: {
+    scanSuccess: boolean;
+    allowOnPhone: boolean;
+    qrVisible: boolean;
+    expired: boolean;
+    loginSuccess: boolean;
+  };
+};
+
 // ElectronRuntimeAdapter is implemented in main process and exposed via IPC
+export type ApiLogEntry = {
+  time: string;
+  level: "info" | "error" | "warn";
+  message: string;
+};
+
 export type ElectronRuntimeApi = {
   openLoginWindow(): Promise<void>;
   closeLoginWindow(): Promise<void>;
   getAccountInfo(): Promise<ImaAccountInfo | null>;
+  getLoginProbeStatus(): Promise<LoginProbeStatus>;
   clearAccountInfo(): Promise<void>;
+  setAccountInfo(info: ImaAccountInfo): Promise<void>;
   chooseDirectory(): Promise<string | null>;
   saveFile(path: string, data: string): Promise<void>;
   downloadUrl(url: string, path: string): Promise<void>;
@@ -66,7 +100,9 @@ export type ElectronRuntimeApi = {
   onAccountInfoChanged(callback: (account: ImaAccountInfo | null) => void): () => void;
   onLoginWindowClosed(callback: () => void): () => void;
   onOpenApiConfigChanged(callback: () => void): () => void;
-  apiFetch(url: string, init: { method?: string; headers?: Record<string, string>; body?: string }): Promise<Response>;
+  onApiLog(callback: (entry: ApiLogEntry) => void): () => void;
+  apiFetch(url: string, init: { method?: string; headers?: Record<string, string>; body?: string }): Promise<ApiFetchResult>;
+  downloadBinaryBase64(url: string, headers?: Record<string, string>): Promise<{ base64: string; contentType: string }>;
 };
 
 declare global {

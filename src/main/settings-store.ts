@@ -1,6 +1,7 @@
 import { app } from "electron";
 import fs from "fs";
 import path from "path";
+import type { ImaAccountInfo } from "../core/types";
 
 export type DuplicatePolicy = "reject" | "rename" | "skip";
 
@@ -8,6 +9,7 @@ export type AppSettings = {
   imaOpenApiClientId?: string;
   imaOpenApiApiKey?: string;
   duplicatePolicy?: DuplicatePolicy;
+  accountInfo?: ImaAccountInfo;
 };
 
 const FILENAME = "settings.json";
@@ -23,6 +25,13 @@ function getBackupPath(original: string): string {
 
 function isValidDuplicatePolicy(v: unknown): v is DuplicatePolicy {
   return v === "reject" || v === "rename" || v === "skip";
+}
+
+function isValidAccountInfo(v: unknown): v is ImaAccountInfo {
+  if (typeof v !== "object" || v === null) return false;
+  const obj = v as Record<string, unknown>;
+  return typeof obj.guid === "string" && typeof obj.token === "string" &&
+    typeof obj.refreshToken === "string" && typeof obj.uid === "string";
 }
 
 export function loadAppSettings(): AppSettings | null {
@@ -47,6 +56,9 @@ export function loadAppSettings(): AppSettings | null {
     if (isValidDuplicatePolicy(obj.duplicatePolicy)) {
       result.duplicatePolicy = obj.duplicatePolicy;
     }
+    if (isValidAccountInfo(obj.accountInfo)) {
+      result.accountInfo = obj.accountInfo;
+    }
 
     return result;
   } catch (err) {
@@ -69,10 +81,11 @@ export function saveAppSettings(settings: AppSettings): void {
   fs.mkdirSync(dir, { recursive: true });
 
   const tempPath = `${filePath}.tmp`;
-  const payload: Record<string, string> = {};
+  const payload: Record<string, unknown> = {};
   if (settings.imaOpenApiClientId) payload.imaOpenApiClientId = settings.imaOpenApiClientId;
   if (settings.imaOpenApiApiKey) payload.imaOpenApiApiKey = settings.imaOpenApiApiKey;
   if (settings.duplicatePolicy) payload.duplicatePolicy = settings.duplicatePolicy;
+  if (settings.accountInfo) payload.accountInfo = settings.accountInfo;
 
   fs.writeFileSync(tempPath, JSON.stringify(payload, null, 2), "utf-8");
   fs.renameSync(tempPath, filePath);
@@ -105,5 +118,27 @@ export function saveOpenApiSettings(settings: { clientId: string; apiKey: string
 }
 
 export function clearOpenApiSettings(): void {
-  clearAppSettings();
+  const existing = loadAppSettings();
+  if (existing) {
+    const { imaOpenApiClientId: _, imaOpenApiApiKey: __, ...rest } = existing;
+    saveAppSettings(rest);
+  }
+}
+
+export function loadAccountInfo(): ImaAccountInfo | null {
+  const settings = loadAppSettings();
+  return settings?.accountInfo ?? null;
+}
+
+export function saveAccountInfo(info: ImaAccountInfo): void {
+  const existing = loadAppSettings() || {};
+  saveAppSettings({ ...existing, accountInfo: info });
+}
+
+export function clearAccountInfo(): void {
+  const existing = loadAppSettings();
+  if (existing?.accountInfo) {
+    const { accountInfo: _, ...rest } = existing;
+    saveAppSettings(rest);
+  }
 }
