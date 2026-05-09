@@ -1,137 +1,218 @@
 # IMA Bridge
 
-IMA Bridge 是一个本地桌面客户端，用于浏览、下载和同步腾讯 IMA（ima.qq.com）知识库内容。
+**IMA Knowledge Base Desktop Client**
 
-## 项目简介
+[![Electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 
-本项目是**纯本地工具**，只使用用户自己的 IMA 登录态和 OpenAPI 凭证，**不提供任何第三方后台服务**。所有网络请求均直接发往 `ima.qq.com` 官方域名。
+Browse, download, and sync IMA (ima.qq.com) knowledge base content locally. Pure client-side tool — all requests go directly to IMA servers, no third-party backend.
 
-## 当前功能
+[Quick Start](#quick-start) | [Architecture](#architecture) | [Features](#features) | [Usage](#usage) | [Build](#build)
 
-- **扫码登录**：通过官方 IMA 网页完成登录，无需手动输入账号密码。
-- **浏览知识库**：列出个人、创建和加入的知识库。
-- **分页浏览文件夹**：支持逐页加载大文件夹，不阻塞浏览。
-- **下载/导出**：支持 PDF、图片、文档、幻灯片、音频、视频、表格、链接、微信文章、笔记等多种类型。
-- **OpenAPI 同步**：将本地内容同步到个人知识库（需配置 IMA OpenAPI 凭证）。
-- **内容类型扩展**：链接（`import_urls`）、微信文章（HTML 导出）、笔记（MD/HTML 导出）。
-- **队列持久化**：下载/同步队列支持持久化，重启后可恢复并继续。
-- **设置面板**：在应用内安全配置 OpenAPI 凭证，无需手动编辑 `.env`。
-- **重名策略**：同步时遇到同名文件可选择「拒绝」「自动重命名」或「跳过」。
-- **v0.3 视觉升级**：Mascot 状态组件、Loading / Empty / Success / Error 状态反馈、全局视觉层级与响应式优化。
+---
 
-## 安全说明
+## Features
 
-- **凭证存储**：OpenAPI 凭证保存在本地 `userData/settings.json`，当前为明文存储（后续可考虑升级系统钥匙串）。
-- **不泄露密钥**：渲染进程（UI）永远不会收到完整的 API Key，仅展示 `clientIdPreview`（前 4 位 + 后 4 位，中间隐藏）。
-- **不提交凭证**：`.env` 和 `.env.local` 已加入 `.gitignore`，不会被提交到仓库。
-- **无第三方后台**：所有请求直接发往 IMA 官方服务器，本项目不架设任何中转服务。
+- **QR Login** — Scan to authenticate via official IMA web, no manual credentials
+- **Knowledge Bases** — Browse personal, created, and joined knowledge bases with cover logos
+- **Folder Navigation** — Paginated browsing for large folders, breadcrumb navigation
+- **Multi-Type Export** — PDF, images, documents, slides, audio, video, spreadsheets, links, WeChat articles, notebooks
+- **Self-Contained HTML** — WeChat articles export with all images base64-inlined, external CSS inlined
+- **Notebook Export** — Notes as Markdown or styled HTML with embedded images
+- **OpenAPI Sync** — Upload local files to IMA knowledge bases via OpenAPI (requires credentials)
+- **Queue Persistence** — Download/sync queue survives app restarts
+- **Duplicate Policy** — Reject, auto-rename, or skip on name conflicts during sync
+- **Settings Panel** — Configure OpenAPI credentials in-app, no `.env` editing required
 
-## 安装依赖
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                  Renderer (React)                │
+│  App │ DocumentList │ DownloadQueue │ Settings   │
+└──────────────────────┬──────────────────────────┘
+                       │ IPC (contextBridge)
+┌──────────────────────┴──────────────────────────┐
+│                 Main Process (Electron)          │
+│  IPC Handlers │ Login Window │ Queue Store       │
+│  Download (binary) │ COS Upload │ File I/O       │
+└──────────────────────┬──────────────────────────┘
+                       │
+┌──────────────────────┴──────────────────────────┐
+│                  Core Layer                      │
+│  ImaWebApi │ Exporters │ Types │ Auth            │
+└──────────────────────┬──────────────────────────┘
+                       │
+          ┌────────────┴────────────┐
+          ▼                         ▼
+   ima.qq.com APIs          IMA OpenAPI
+   (Web session)            (Client credentials)
+```
+
+| Layer | Components | Purpose |
+|-------|-----------|---------|
+| Renderer | React components, hooks | UI, queue management, settings |
+| IPC | `contextBridge`, preload | Secure renderer ↔ main communication |
+| Main | IPC handlers, file I/O, COS upload | Download, export, sync orchestration |
+| Core | `ImaWebApi`, exporters, types | API calls, HTML/MD generation, auth headers |
+| Exporters | `note-exporter`, `wechat-exporter` | Self-contained HTML with base64 images |
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- npm
+
+### Install
 
 ```bash
+git clone git@github.com:ayermac/ima-bridge.git
+cd ima-bridge
 npm install
 ```
 
-## 测试
-
-```bash
-npm run test:run
-```
-
-## 开发启动
+### Development
 
 ```bash
 npm run dev
 ```
 
-启动后应用窗口会自动打开，并加载 DevTools。
+Opens the Electron app with DevTools loaded.
 
-## 构建
+### Test
+
+```bash
+npm run test:run
+```
+
+## Usage
+
+1. Click **"扫码登录"** to open the IMA login window, scan QR to authenticate
+2. Browse knowledge bases, click to enter one
+3. Select files:
+   - **Download** — Save to local directory
+   - **Sync** — Configure OpenAPI credentials first, pick a target knowledge base, click "同步"
+4. Queue panel shows real-time progress with retry and clear controls
+
+## Modules
+
+### Exporters
+
+**Note Export** — JSON content blocks to styled HTML or Markdown:
+
+```ts
+import { notebookContentToHtml } from "@core/exporters/note-exporter";
+
+const html = await notebookContentToHtml(content, title, linkMap, downloadBinary);
+// → Self-contained HTML with base64-inlined images
+```
+
+**WeChat Article Export** — Fetch, parse DOM, inline all resources:
+
+```ts
+import { buildWechatHtml } from "@core/exporters/wechat-exporter";
+
+const html = await buildWechatHtml(url, title, fetchImpl, downloadBinary);
+// → Fully self-contained HTML (images + CSS inlined)
+```
+
+### IMA Web API
+
+```ts
+import { ImaWebApi } from "@core/ima-web-api";
+
+const api = new ImaWebApi(account, fetchImpl, downloadBinary);
+const bases = await api.listKnowledgeBases();
+const page = await api.listFolder(knowledgeBaseId, folderId);
+const exported = await api.exportNote(mediaId, "html");
+```
+
+### OpenAPI Sync
+
+```ts
+import { ImaOpenApi } from "@core/ima-open-api";
+
+const api = new ImaOpenApi({ clientId, apiKey });
+const result = await api.createMedia({ file_name, file_size, content_type, knowledge_base_id });
+await uploadToCos({ filePath, ...result.cos_credential });
+await api.addKnowledge({ media_id, knowledge_base_id, title });
+```
+
+## Project Structure
+
+```
+ima-bridge/
+├── src/
+│   ├── core/               # Business logic, API clients, types
+│   │   ├── exporters/      #   Note & WeChat HTML/MD generators
+│   │   ├── ima-web-api.ts  #   IMA Web API client
+│   │   ├── ima-open-api.ts #   IMA OpenAPI client (sync/upload)
+│   │   └── types.ts        #   Shared type definitions
+│   ├── main/               # Electron main process
+│   │   ├── ipc.ts          #   IPC handlers (download, fetch, sync)
+│   │   ├── login-window.ts #   QR login window management
+│   │   ├── cos-upload.ts   #   Tencent Cloud COS upload
+│   │   └── settings-store.ts
+│   ├── preload/            # Context bridge (secure IPC exposure)
+│   ├── renderer/           # React UI
+│   │   ├── src/
+│   │   │   ├── components/ #   DocumentList, DownloadQueue, Settings...
+│   │   │   ├── hooks/      #   useIpc, useRuntime
+│   │   │   └── App.tsx
+│   │   └── src/styles/     #   CSS design tokens & layout
+│   └── runtime/            # Adapter types for cross-platform
+├── tests/                  # Vitest unit tests
+└── electron-builder.yml    # Build config
+```
+
+## Build
+
+### Current Platform
 
 ```bash
 npm run build
+npm run pack              # Unpacked app directory (debug)
+npm run dist              # Installer (DMG / EXE)
 ```
 
-构建产物输出到 `out/` 目录（main、preload、renderer 三个子目录）。
-
-## OpenAPI 设置方式
-
-应用提供两种配置方式，优先级从高到低：
-
-1. **设置面板（推荐）**：点击顶部「设置」按钮，在弹窗中输入 Client ID 和 API Key，保存后立即生效，无需重启。
-2. **环境变量 fallback**：复制 `.env.example` 为 `.env` 并填写凭证，或在 shell 中设置环境变量。
-
-```bash
-cp .env.example .env
-# 编辑 .env 填入你的凭证
-```
-
-## 使用流程
-
-1. 启动应用后点击「扫码登录」，在弹出窗口中完成 IMA 登录。
-2. 浏览知识库列表，点击进入某个知识库。
-3. 在文件夹中选择文件：
-   - **下载**：直接下载到本地目录。
-   - **同步**：先配置 OpenAPI 凭证，选择目标知识库，点击「同步选中」或「同步全部」。
-4. 队列面板实时显示下载/同步进度，支持重试和清除已完成项。
-
-## 已知限制
-
-- **链接/微信文章重名策略**：`import_urls` 接口无法可靠检查重名，重名策略仅对文件上传路径生效；fallback 文件上传时仍会应用策略。
-- **全库同步**：当前「同步全部」需要手动逐页触发，暂不支持后台自动递归扫描整个知识库。
-- **凭证存储**：当前为本地明文 JSON，未使用系统钥匙串或加密存储。
-- **平台**：目前基于 Electron，后续可能评估 Tauri 迁移。
-
-## 打包发布
-
-> 当前打包产物**未进行代码签名**。macOS 和 Windows 可能会在首次运行时提示安全警告，用户需要手动允许运行。
-
-### 先决条件
-
-确保已运行 `npm install` 安装依赖（包含 `electron-builder`）。
-
-### 打包当前平台
-
-```bash
-npm run build
-npm run pack
-```
-
-`pack` 会生成未封装的 app 目录（方便调试），输出到 `release/mac` 或 `release/win-unpacked`。
-
-### 构建 macOS 安装包
+### macOS
 
 ```bash
 npm run dist:mac
+# → release/IMA Bridge-x.x.x.dmg
+# → release/IMA Bridge-x.x.x-mac.zip
 ```
 
-产物：
-- `release/IMA Bridge-0.3.3.dmg` — 标准安装包
-- `release/IMA Bridge-0.3.3-mac.zip` — 便携压缩包
-
-### 构建 Windows 安装包
+### Windows
 
 ```bash
 npm run dist:win
+# → release/IMA Bridge Setup x.x.x.exe
 ```
 
-产物：
-- `release/IMA Bridge Setup 0.3.3.exe` — 安装向导
-- `release/IMA Bridge 0.3.3.exe` — 便携版
+> Cross-building Windows on macOS requires Wine + Mono, or use CI/CD.
 
-> 在 macOS 上构建 Windows 安装包需要安装 Wine 和 Mono，或使用 CI/CD（GitHub Actions 等）。如环境不支持，请在 Windows 机器上执行 `npm run dist:win`。
+### Security Note
 
-### 完整发布（当前平台 + 通用）
+Builds are **unsigned**. On first launch:
+- **macOS**: System Settings → Privacy & Security → "Open Anyway"
+- **Windows**: SmartScreen → "More info" → "Run anyway"
 
-```bash
-npm run dist
-```
+## OpenAPI Configuration
 
-### 安全提示
+Two methods, priority from high to low:
 
-由于未签名：
-- **macOS**：首次打开可能提示「无法验证开发者」。请前往「系统设置 → 隐私与安全性」点击「仍要打开」。
-- **Windows**：SmartScreen 可能拦截，点击「更多信息」→「仍要运行」。
+1. **Settings Panel** (recommended) — Enter Client ID and API Key in-app, saves immediately
+2. **Environment variable fallback** — Copy `.env.example` to `.env` and fill in credentials
+
+## Known Limitations
+
+- **Link/WeChat duplicate detection** — `import_urls` API cannot reliably check duplicates; policy only applies to file upload path
+- **Full KB sync** — "Sync all" requires manual page-by-page trigger, no background recursive scan yet
+- **Credential storage** — Plaintext JSON in `userData/settings.json`, not yet using system keychain
 
 ## License
 
@@ -139,4 +220,4 @@ UNLICENSED
 
 ---
 
-> 本项目与腾讯 IMA 官方无直接关联，仅为第三方工具。
+> This project is not officially affiliated with Tencent IMA. Third-party tool only.
