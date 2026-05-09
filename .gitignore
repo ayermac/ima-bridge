@@ -54,6 +54,7 @@ playwright-report/
 *.bak
 *.tmp
 .cache/
+.omc/
 
 # Release / packaging
 release/
