@@ -19,10 +19,12 @@ const NOTE_DOC_URL = "https://ima.qq.com/cgi-bin/notebook/logic/get_share_know_d
 export class ImaWebApi implements KnowledgeSource {
   private account: ImaAccountInfo;
   private fetchImpl: typeof fetch;
+  private downloadBinary?: (url: string, headers?: Record<string, string>) => Promise<{ base64: string; contentType: string }>;
 
-  constructor(account: ImaAccountInfo, fetchImpl?: typeof fetch) {
+  constructor(account: ImaAccountInfo, fetchImpl?: typeof fetch, downloadBinary?: (url: string, headers?: Record<string, string>) => Promise<{ base64: string; contentType: string }>) {
     this.account = account;
     this.fetchImpl = fetchImpl || fetch;
+    this.downloadBinary = downloadBinary;
   }
 
   private headers(): Record<string, string> {
@@ -30,12 +32,17 @@ export class ImaWebApi implements KnowledgeSource {
   }
 
   private async postJson(url: string, body: unknown): Promise<Record<string, unknown>> {
-    const response = await this.fetchImpl(url, {
-      method: "POST",
-      headers: this.headers(),
-      credentials: "include",
-      body: JSON.stringify(body),
-    });
+    const response = await Promise.race([
+      this.fetchImpl(url, {
+        method: "POST",
+        headers: this.headers(),
+        credentials: "include",
+        body: JSON.stringify(body),
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("笔记请求超时（30秒）")), 30000)
+      ),
+    ]);
 
     const data = (await response.json()) as Record<string, unknown>;
     if (!response.ok) {
@@ -86,13 +93,37 @@ export class ImaWebApi implements KnowledgeSource {
     };
   }
 
+  private guessMediaType(title: string, rawType: number): number {
+    // IMA 服务端有时会返回错误的 media_type，根据文件扩展名校正
+    const ext = title.includes(".") ? title.slice(title.lastIndexOf(".")).toLowerCase() : "";
+    const IMAGE_EXTS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico", ".tiff", ".tif"];
+    const AUDIO_EXTS = [".mp3", ".wav", ".flac", ".aac", ".ogg", ".wma", ".m4a"];
+    const VIDEO_EXTS = [".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm", ".m4v"];
+    const DOC_EXTS = [".doc", ".docx", ".txt", ".rtf", ".odt", ".pages"];
+    const SLIDE_EXTS = [".ppt", ".pptx", ".key", ".odp"];
+    const SHEET_EXTS = [".xls", ".xlsx", ".csv", ".numbers", ".ods"];
+    const PDF_EXTS = [".pdf"];
+
+    if (!ext) return rawType;
+    if (IMAGE_EXTS.includes(ext)) return rawType === 4 ? rawType : 4;
+    if (AUDIO_EXTS.includes(ext)) return rawType === 9 ? rawType : 9;
+    if (VIDEO_EXTS.includes(ext)) return rawType === 13 ? rawType : 13;
+    if (PDF_EXTS.includes(ext)) return rawType === 1 ? rawType : 1;
+    if (SLIDE_EXTS.includes(ext)) return rawType === 7 ? rawType : 7;
+    if (SHEET_EXTS.includes(ext)) return rawType === 15 ? rawType : 15;
+    if (DOC_EXTS.includes(ext)) return rawType === 3 ? rawType : 3;
+    return rawType;
+  }
+
   private normalizeDocument(item: Record<string, unknown>, path: string): DocumentItem {
     const folderInfo = item.folder_info as Record<string, unknown> | null;
     const isFolder = !!folderInfo;
+    const title = String(item.title || "");
+    const rawType = Number(item.media_type || 0);
     return {
-      title: String(item.title || ""),
+      title,
       media_id: String(item.media_id || ""),
-      media_type: Number(item.media_type || 0),
+      media_type: isFolder ? rawType : this.guessMediaType(title, rawType),
       file_size: String(item.file_size || "0"),
       create_time: String(item.create_time || ""),
       update_time: String(item.update_time || ""),
@@ -319,7 +350,9 @@ export class ImaWebApi implements KnowledgeSource {
     if (format === "html") {
       return {
         title,
-        content: notebookContentToHtml(rawContent, title, linkMap),
+        content: await notebookContentToHtml(rawContent, title, linkMap, this.downloadBinary
+        ? (url: string) => this.downloadBinary!(url, this.headers())
+        : undefined),
         mimeType: "text/html",
         extension: "html",
       };
@@ -336,7 +369,14 @@ export class ImaWebApi implements KnowledgeSource {
     const media = await this.getMedia(mediaId);
     const url = media.url;
     const { buildWechatHtml } = await import("./exporters/wechat-exporter");
-    const html = await buildWechatHtml(url, String(media.data.title || "微信文章"), this.fetchImpl);
+    const html = await buildWechatHtml(
+      url,
+      String(media.data.title || "微信文章"),
+      this.fetchImpl,
+      this.downloadBinary
+        ? (imgUrl: string) => this.downloadBinary!(imgUrl, this.headers())
+        : undefined
+    );
     return {
       title: String(media.data.title || "微信文章"),
       content: html,

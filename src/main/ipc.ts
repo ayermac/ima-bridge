@@ -6,9 +6,11 @@ import http from "http";
 import {
   createLoginWindow,
   closeLoginWindow,
+  getLoginProbeStatus,
   tryReadAccountInfo,
   onAccountInfoChanged,
   onLoginWindowClosed,
+  notifyAccountInfo,
 } from "./login-window";
 import {
   getImaOpenApiConfigStatus,
@@ -24,10 +26,11 @@ import { renameWithTimestamp } from "../core/duplicate-utils";
 import { uploadToCos } from "./cos-upload";
 import { loadQueueState, saveQueueState, clearQueueState } from "./queue-store";
 import type { QueuePersistedState } from "./queue-store";
+import { loadAccountInfo, saveAccountInfo, clearAccountInfo } from "./settings-store";
 
 export function setupIpcHandlers(mainWindow: BrowserWindow): void {
-  ipcMain.handle("ima:openLoginWindow", () => {
-    createLoginWindow();
+  ipcMain.handle("ima:openLoginWindow", async () => {
+    await createLoginWindow(mainWindow);
   });
 
   ipcMain.handle("ima:closeLoginWindow", () => {
@@ -35,12 +38,22 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
   });
 
   ipcMain.handle("ima:getAccountInfo", async () => {
-    return tryReadAccountInfo();
+    return tryReadAccountInfo() || loadAccountInfo();
+  });
+
+  ipcMain.handle("ima:getLoginProbeStatus", async () => {
+    return getLoginProbeStatus();
   });
 
   ipcMain.handle("ima:clearAccountInfo", () => {
-    // No persistent storage in Phase 1; just notify null
-    // Future: clear from keychain
+    clearAccountInfo();
+    notifyAccountInfo(null);
+    return Promise.resolve();
+  });
+
+  ipcMain.handle("ima:setAccountInfo", (_event, info: { guid: string; token: string; refreshToken: string; uid: string }) => {
+    saveAccountInfo(info);
+    notifyAccountInfo(info);
     return Promise.resolve();
   });
 
@@ -192,18 +205,35 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
 
   const ALLOWED_API_FETCH_HOSTS = new Set([
     "ima.qq.com",
+    "ima.copilot",
     "mp.weixin.qq.com",
     "mmbiz.qpic.cn",
     "res.wx.qq.com",
   ]);
 
+  function isAllowedHost(hostname: string): boolean {
+    if (ALLOWED_API_FETCH_HOSTS.has(hostname)) return true;
+    // 腾讯云 COS 图片域名 (*.image.myqcloud.com, *.cos.*.myqcloud.com)
+    if (hostname.endsWith(".myqcloud.com")) return true;
+    return false;
+  }
+
+  function sendApiLog(level: "info" | "error" | "warn", message: string) {
+    mainWindow.webContents.send("ima:apiLog", {
+      time: new Date().toLocaleTimeString(),
+      level,
+      message,
+    });
+  }
+
   ipcMain.handle("ima:apiFetch", async (_event, url: string, init: { method?: string; headers?: Record<string, string>; body?: string }) => {
     const parsedUrl = new URL(url);
-    if (!ALLOWED_API_FETCH_HOSTS.has(parsedUrl.hostname)) {
+    if (!isAllowedHost(parsedUrl.hostname)) {
       throw new Error(`不允许的请求目标: ${parsedUrl.hostname}`);
     }
 
     return new Promise<{ ok: boolean; status: number; data: unknown; text: string; headers: Record<string, string> }>((resolve, reject) => {
+      const startTime = Date.now();
       const client = url.startsWith("https:") ? https : http;
       const options = {
         hostname: parsedUrl.hostname,
@@ -212,11 +242,27 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
         method: init.method || "GET",
         headers: init.headers || {},
       };
+      sendApiLog("info", `[apiFetch] ${options.method} ${url}`);
+      let settled = false;
+
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        req.destroy();
+        sendApiLog("error", `[apiFetch] 超时 ${Date.now() - startTime}ms: ${url}`);
+        reject(new Error("请求超时"));
+      }, 30000);
+
       const req = client.request(options, (res) => {
         let data = "";
         res.setEncoding("utf8");
         res.on("data", (chunk: string) => { data += chunk; });
         res.on("end", () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          const elapsed = Date.now() - startTime;
+          sendApiLog("info", `[apiFetch] 响应 ${res.statusCode} ${elapsed}ms ${url} (body=${data.length} chars)`);
           let json: unknown;
           try { json = JSON.parse(data); } catch { json = undefined; }
           const headers: Record<string, string> = {};
@@ -226,8 +272,70 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
           resolve({ ok: (res.statusCode || 0) >= 200 && (res.statusCode || 0) < 300, status: res.statusCode || 0, data: json, text: data, headers });
         });
       });
-      req.on("error", reject);
+      req.on("error", (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        sendApiLog("error", `[apiFetch] 错误 ${Date.now() - startTime}ms ${url}: ${err.message}`);
+        reject(err);
+      });
       if (init.body) req.write(init.body);
+      req.end();
+    });
+  });
+
+  ipcMain.handle("ima:downloadBinaryBase64", async (_event, url: string, extraHeaders?: Record<string, string>) => {
+    const parsedUrl = new URL(url);
+    if (!isAllowedHost(parsedUrl.hostname)) {
+      throw new Error(`不允许的下载目标: ${parsedUrl.hostname}`);
+    }
+
+    return new Promise<{ base64: string; contentType: string }>((resolve, reject) => {
+      const client = url.startsWith("https:") ? https : http;
+      const options = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (url.startsWith("https:") ? "443" : "80"),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: "GET",
+        headers: {
+          "Referer": parsedUrl.hostname.includes("mmbiz.qpic.cn") || parsedUrl.hostname.includes("wx.qq.com")
+            ? "https://mp.weixin.qq.com/"
+            : "https://ima.qq.com/",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+          ...extraHeaders,
+        },
+      };
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        req.destroy();
+        reject(new Error("图片下载超时"));
+      }, 30000);
+
+      const req = client.request(options, (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => { chunks.push(chunk); });
+        res.on("end", () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          if ((res.statusCode || 0) < 200 || (res.statusCode || 0) >= 300) {
+            reject(new Error(`图片下载失败: HTTP ${res.statusCode}`));
+            return;
+          }
+          const buf = Buffer.concat(chunks);
+          const contentType = String(res.headers["content-type"] || "image/png");
+          resolve({ base64: buf.toString("base64"), contentType });
+        });
+      });
+      req.on("error", (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        reject(err);
+      });
       req.end();
     });
   });
@@ -351,6 +459,22 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
 
     // 链接 / 微信文章优先走 import_urls
     if ((mediaType === 2 || mediaType === 6) && url) {
+      // Check duplicate names before import
+      try {
+        const repeated = await api.checkRepeatedNames(targetKnowledgeBaseId, [{ name: title, media_type: mediaType }]);
+        if (repeated[0]?.is_repeated) {
+          if (policy === "reject") {
+            throw new Error(`目标知识库已存在同名内容：${title}。当前版本不会覆盖，请重命名后重试。`);
+          }
+          if (policy === "skip") {
+            return { success: true, skipped: true };
+          }
+        }
+      } catch (err) {
+        // If the check itself fails (e.g. API doesn't support it), fall through to import
+        if ((err as Error).message?.includes("目标知识库已存在")) throw err;
+      }
+
       const importResult = await api.importUrls({ urls: [url], knowledge_base_id: targetKnowledgeBaseId });
       const first = importResult.results?.[0];
       if (first?.success) {
