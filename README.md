@@ -2,6 +2,8 @@
 
 **IMA Knowledge Base Desktop Client**
 
+[English](README.md) | [中文](README.zh-CN.md)
+
 [![Electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -15,16 +17,18 @@ Browse, download, and sync IMA (ima.qq.com) knowledge base content locally. Pure
 
 ## Features
 
-- **QR Login** — Scan to authenticate via official IMA web, no manual credentials
+- **One-Click Login** — Start a local HTTP server, paste a one-liner JS script in ima.qq.com DevTools console to transfer credentials automatically; manual JSON paste also supported
 - **Knowledge Bases** — Browse personal, created, and joined knowledge bases with cover logos
 - **Folder Navigation** — Paginated browsing for large folders, breadcrumb navigation
 - **Multi-Type Export** — PDF, images, documents, slides, audio, video, spreadsheets, links, WeChat articles, notebooks
 - **Self-Contained HTML** — WeChat articles export with all images base64-inlined, external CSS inlined
 - **Notebook Export** — Notes as Markdown or styled HTML with embedded images
 - **OpenAPI Sync** — Upload local files to IMA knowledge bases via OpenAPI (requires credentials)
-- **Queue Persistence** — Download/sync queue survives app restarts
+- **Queue Persistence** — Download/sync queue survives app restarts with 45s watchdog auto-reset on timeout
 - **Duplicate Policy** — Reject, auto-rename, or skip on name conflicts during sync
 - **Settings Panel** — Configure OpenAPI credentials in-app, no `.env` editing required
+- **API Log Viewer** — Real-time request/response log panel for debugging and monitoring
+- **Encrypted Credentials** — OpenAPI credentials encrypted at rest in settings store
 
 ## Architecture
 
@@ -36,8 +40,9 @@ Browse, download, and sync IMA (ima.qq.com) knowledge base content locally. Pure
                        │ IPC (contextBridge)
 ┌──────────────────────┴──────────────────────────┐
 │                 Main Process (Electron)          │
-│  IPC Handlers │ Login Window │ Queue Store       │
+│  IPC Handlers │ Login Server (HTTP) │ Queue Store │
 │  Download (binary) │ COS Upload │ File I/O       │
+│  Settings Store (encrypted) │ API Log Collector  │
 └──────────────────────┬──────────────────────────┘
                        │
 ┌──────────────────────┴──────────────────────────┐
@@ -55,7 +60,7 @@ Browse, download, and sync IMA (ima.qq.com) knowledge base content locally. Pure
 |-------|-----------|---------|
 | Renderer | React components, hooks | UI, queue management, settings |
 | IPC | `contextBridge`, preload | Secure renderer ↔ main communication |
-| Main | IPC handlers, file I/O, COS upload | Download, export, sync orchestration |
+| Main | IPC handlers, file I/O, COS upload, settings store | Download, export, sync orchestration, encrypted credential persistence |
 | Core | `ImaWebApi`, exporters, types | API calls, HTML/MD generation, auth headers |
 | Exporters | `note-exporter`, `wechat-exporter` | Self-contained HTML with base64 images |
 
@@ -90,12 +95,13 @@ npm run test:run
 
 ## Usage
 
-1. Click **"扫码登录"** to open the IMA login window, scan QR to authenticate
+1. Click **"一键登录"** — a local HTTP server starts; paste the displayed JS script in ima.qq.com DevTools console (type `allow pasting` first in Chrome) to transfer credentials automatically; alternatively, paste accountInfo JSON manually
 2. Browse knowledge bases, click to enter one
 3. Select files:
    - **Download** — Save to local directory
    - **Sync** — Configure OpenAPI credentials first, pick a target knowledge base, click "同步"
-4. Queue panel shows real-time progress with retry and clear controls
+4. Queue panel shows real-time progress with retry and clear controls; a 45s watchdog auto-resets stuck items
+5. **Logs** tab shows real-time API request/response entries for debugging
 
 ## Modules
 
@@ -152,10 +158,10 @@ ima-bridge/
 │   │   ├── ima-open-api.ts #   IMA OpenAPI client (sync/upload)
 │   │   └── types.ts        #   Shared type definitions
 │   ├── main/               # Electron main process
-│   │   ├── ipc.ts          #   IPC handlers (download, fetch, sync)
-│   │   ├── login-window.ts #   QR login window management
+│   │   ├── ipc.ts          #   IPC handlers (download, fetch, sync, logs)
+│   │   ├── login-window.ts #   WebView QR login with storage probing & polling
 │   │   ├── cos-upload.ts   #   Tencent Cloud COS upload
-│   │   └── settings-store.ts
+│   │   └── settings-store.ts # Encrypted credential persistence
 │   ├── preload/            # Context bridge (secure IPC exposure)
 │   ├── renderer/           # React UI
 │   │   ├── src/
@@ -205,14 +211,14 @@ Builds are **unsigned**. On first launch:
 
 Two methods, priority from high to low:
 
-1. **Settings Panel** (recommended) — Enter Client ID and API Key in-app, saves immediately
+1. **Settings Panel** (recommended) — Enter Client ID and API Key in-app, saves encrypted to disk immediately
 2. **Environment variable fallback** — Copy `.env.example` to `.env` and fill in credentials
 
 ## Known Limitations
 
 - **Link/WeChat duplicate detection** — `import_urls` API cannot reliably check duplicates; policy only applies to file upload path
 - **Full KB sync** — "Sync all" requires manual page-by-page trigger, no background recursive scan yet
-- **Credential storage** — Plaintext JSON in `userData/settings.json`, not yet using system keychain
+- **Credential storage** — Encrypted at rest in `userData/settings.json`, not yet using system keychain
 
 ## License
 

@@ -10,7 +10,15 @@ const MAX_PART_LENGTH = 120;
 
 export function cleanPathPart(part: string): string {
   let cleaned = part
+    .normalize("NFKC")
     .replace(/[\\/:*?"<>|]/g, "_")
+    .replace(/[／＼]/g, "_")
+    .replace(/[：？＊＜＞，；]/g, "_")
+    .replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, "")
+    .replace(/[\ufe00-\ufe0f\u20e3]/g, "")
+    .replace(/[\u{1f000}-\u{1faff}\u{2600}-\u{27bf}]/gu, "_")
+    .replace(/[\x00-\x1f\x7f]/g, "_")
+    .replace(/_+/g, "_")
     .replace(/\s+/g, " ")
     .trim();
 

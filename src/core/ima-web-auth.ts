@@ -1,7 +1,5 @@
 import type { ImaAccountInfo } from "./types";
 
-const ACCOUNT_KEY = "ima-universal-local-storage-accountInfo";
-
 export function bknHash(token: string): string {
   let hash = 5381;
   for (let i = 0; i < token.length; i += 1) {
@@ -50,7 +48,3 @@ export function buildHeaders(account: ImaAccountInfo): Record<string, string> {
   };
 }
 
-export function readAccountInfoFromStorage(): ImaAccountInfo {
-  const raw = typeof localStorage !== "undefined" ? localStorage.getItem(ACCOUNT_KEY) : null;
-  return parseAccountInfo(raw);
-}
