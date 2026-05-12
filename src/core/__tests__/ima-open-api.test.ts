@@ -11,35 +11,35 @@ describe("inferMediaType", () => {
   });
 
   it("infers PowerPoint pptx", () => {
-    expect(inferMediaType("slides.pptx")).toEqual({ mediaType: 4, contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", ext: "pptx" });
+    expect(inferMediaType("slides.pptx")).toEqual({ mediaType: 7, contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", ext: "pptx" });
   });
 
   it("infers Excel xlsx", () => {
-    expect(inferMediaType("sheet.xlsx")).toEqual({ mediaType: 5, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ext: "xlsx" });
+    expect(inferMediaType("sheet.xlsx")).toEqual({ mediaType: 15, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ext: "xlsx" });
   });
 
   it("infers CSV", () => {
-    expect(inferMediaType("data.csv")).toEqual({ mediaType: 5, contentType: "text/csv", ext: "csv" });
+    expect(inferMediaType("data.csv")).toEqual({ mediaType: 15, contentType: "text/csv", ext: "csv" });
   });
 
   it("infers Markdown", () => {
-    expect(inferMediaType("note.md")).toEqual({ mediaType: 7, contentType: "text/markdown", ext: "md" });
+    expect(inferMediaType("note.md")).toEqual({ mediaType: 3, contentType: "text/markdown", ext: "md" });
   });
 
   it("infers PNG image", () => {
-    expect(inferMediaType("img.png")).toEqual({ mediaType: 9, contentType: "image/png", ext: "png" });
+    expect(inferMediaType("img.png")).toEqual({ mediaType: 4, contentType: "image/png", ext: "png" });
   });
 
   it("infers JPEG", () => {
-    expect(inferMediaType("photo.jpg")).toEqual({ mediaType: 9, contentType: "image/jpeg", ext: "jpg" });
+    expect(inferMediaType("photo.jpg")).toEqual({ mediaType: 4, contentType: "image/jpeg", ext: "jpg" });
   });
 
   it("infers TXT", () => {
-    expect(inferMediaType("readme.txt")).toEqual({ mediaType: 13, contentType: "text/plain", ext: "txt" });
+    expect(inferMediaType("readme.txt")).toEqual({ mediaType: 3, contentType: "text/plain", ext: "txt" });
   });
 
   it("infers MP3 audio", () => {
-    expect(inferMediaType("song.mp3")).toEqual({ mediaType: 15, contentType: "audio/mpeg", ext: "mp3" });
+    expect(inferMediaType("song.mp3")).toEqual({ mediaType: 9, contentType: "audio/mpeg", ext: "mp3" });
   });
 
   it("defaults to octet-stream for unknown ext", () => {

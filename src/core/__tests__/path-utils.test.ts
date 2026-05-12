@@ -60,9 +60,13 @@ describe("cleanPathPart", () => {
     expect(cleanPathPart("...")).toBe("未命名");
   });
 
-  it("preserves valid unicode and CJK", () => {
+  it("preserves CJK and removes emoji-like symbols", () => {
     expect(cleanPathPart("中文文件名")).toBe("中文文件名");
-    expect(cleanPathPart("Emoji_🎉")).toBe("Emoji_🎉");
+    expect(cleanPathPart("Emoji_🎉")).toBe("Emoji_");
+  });
+
+  it("removes invisible unicode controls", () => {
+    expect(cleanPathPart("a\u200bb\ufeffc")).toBe("abc");
   });
 });
 

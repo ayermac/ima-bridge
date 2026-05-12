@@ -30,11 +30,13 @@ export type CheckRepeatedResult = {
   is_repeated: boolean;
 };
 
+const IMA_OPENAPI_SKILL_VERSION = "1.0.0";
+
 export class ImaOpenApi {
   private credentials: OpenApiCredentials;
   private version: string;
 
-  constructor(credentials: OpenApiCredentials, version = "0.2.0") {
+  constructor(credentials: OpenApiCredentials, version = IMA_OPENAPI_SKILL_VERSION) {
     this.credentials = credentials;
     this.version = version;
   }
@@ -166,7 +168,7 @@ export function inferMediaType(fileName: string): { mediaType: number; contentTy
     case "ppt":
     case "pptx":
       return {
-        mediaType: 4,
+        mediaType: 7,
         contentType: ext === "pptx" ? "application/vnd.openxmlformats-officedocument.presentationml.presentation" : "application/vnd.ms-powerpoint",
         ext,
       };
@@ -174,32 +176,32 @@ export function inferMediaType(fileName: string): { mediaType: number; contentTy
     case "xlsx":
     case "csv":
       return {
-        mediaType: 5,
+        mediaType: 15,
         contentType: ext === "csv" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         ext,
       };
     case "md":
     case "markdown":
-      return { mediaType: 7, contentType: "text/markdown", ext };
+      return { mediaType: 3, contentType: "text/markdown", ext };
     case "png":
-      return { mediaType: 9, contentType: "image/png", ext };
+      return { mediaType: 4, contentType: "image/png", ext };
     case "jpg":
     case "jpeg":
-      return { mediaType: 9, contentType: "image/jpeg", ext };
+      return { mediaType: 4, contentType: "image/jpeg", ext };
     case "webp":
-      return { mediaType: 9, contentType: "image/webp", ext };
+      return { mediaType: 4, contentType: "image/webp", ext };
     case "txt":
-      return { mediaType: 13, contentType: "text/plain", ext };
+      return { mediaType: 3, contentType: "text/plain", ext };
     case "xmind":
-      return { mediaType: 14, contentType: "application/vnd.xmind.workbook", ext };
+      return { mediaType: 3, contentType: "application/vnd.xmind.workbook", ext };
     case "mp3":
-      return { mediaType: 15, contentType: "audio/mpeg", ext };
+      return { mediaType: 9, contentType: "audio/mpeg", ext };
     case "m4a":
-      return { mediaType: 15, contentType: "audio/x-m4a", ext };
+      return { mediaType: 9, contentType: "audio/x-m4a", ext };
     case "wav":
-      return { mediaType: 15, contentType: "audio/wav", ext };
+      return { mediaType: 9, contentType: "audio/wav", ext };
     case "aac":
-      return { mediaType: 15, contentType: "audio/aac", ext };
+      return { mediaType: 9, contentType: "audio/aac", ext };
     default:
       return { mediaType: 1, contentType: "application/octet-stream", ext: ext || "bin" };
   }

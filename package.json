@@ -1,6 +1,6 @@
 {
   "name": "ima-bridge",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "IMA Bridge Desktop Client — Browse, download and sync IMA knowledge base content locally.",
   "main": "./out/main/index.js",
   "scripts": {
