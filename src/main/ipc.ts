@@ -4,15 +4,6 @@ import path from "path";
 import https from "https";
 import http from "http";
 import {
-  createLoginWindow,
-  closeLoginWindow,
-  getLoginProbeStatus,
-  tryReadAccountInfo,
-  onAccountInfoChanged,
-  onLoginWindowClosed,
-  notifyAccountInfo,
-} from "./login-window";
-import {
   getImaOpenApiConfigStatus,
   getImaOpenApiCredentials,
   saveImaOpenApiSettings,
@@ -27,34 +18,27 @@ import { uploadToCos } from "./cos-upload";
 import { loadQueueState, saveQueueState, clearQueueState } from "./queue-store";
 import type { QueuePersistedState } from "./queue-store";
 import { loadAccountInfo, saveAccountInfo, clearAccountInfo } from "./settings-store";
+import { startLoginServer } from "./login-server";
 
 export function setupIpcHandlers(mainWindow: BrowserWindow): void {
-  ipcMain.handle("ima:openLoginWindow", async () => {
-    await createLoginWindow(mainWindow);
-  });
-
-  ipcMain.handle("ima:closeLoginWindow", () => {
-    closeLoginWindow();
-  });
-
   ipcMain.handle("ima:getAccountInfo", async () => {
-    return tryReadAccountInfo() || loadAccountInfo();
-  });
-
-  ipcMain.handle("ima:getLoginProbeStatus", async () => {
-    return getLoginProbeStatus();
+    return loadAccountInfo();
   });
 
   ipcMain.handle("ima:clearAccountInfo", () => {
     clearAccountInfo();
-    notifyAccountInfo(null);
+    mainWindow.webContents.send("ima:accountInfoChanged", null);
     return Promise.resolve();
   });
 
   ipcMain.handle("ima:setAccountInfo", (_event, info: { guid: string; token: string; refreshToken: string; uid: string }) => {
     saveAccountInfo(info);
-    notifyAccountInfo(info);
+    mainWindow.webContents.send("ima:accountInfoChanged", info);
     return Promise.resolve();
+  });
+
+  ipcMain.handle("ima:startLoginServer", async () => {
+    return startLoginServer(mainWindow);
   });
 
   ipcMain.handle("ima:chooseDirectory", async () => {
@@ -499,14 +483,6 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
     throw new Error("无可用的同步方式：缺少 url 或 localFilePath");
   });
 
-  // Event emitters for renderer
-  const sendAccountInfo = (account: unknown) => {
-    mainWindow.webContents.send("ima:accountInfoChanged", account);
-  };
-  const sendLoginWindowClosed = () => {
-    mainWindow.webContents.send("ima:loginWindowClosed");
-  };
-
   ipcMain.handle("ima:loadQueueState", () => {
     return loadQueueState();
   });
@@ -517,12 +493,5 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle("ima:clearQueueState", () => {
     clearQueueState();
-  });
-
-  onAccountInfoChanged((account) => {
-    sendAccountInfo(account);
-  });
-  onLoginWindowClosed(() => {
-    sendLoginWindowClosed();
   });
 }

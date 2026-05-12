@@ -1,8 +1,6 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
+import { app, BrowserWindow } from "electron";
 import path from "path";
-import { createLoginWindow, closeLoginWindow, getLoginWebContents, notifyAccountInfo } from "./login-window";
 import { setupIpcHandlers } from "./ipc";
-import { loadAccountInfo } from "./settings-store";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -38,11 +36,7 @@ app.whenReady().then(() => {
   mainWindow = createMainWindow();
   setupIpcHandlers(mainWindow);
 
-  // Restore persisted login state
-  const savedAccount = loadAccountInfo();
-  if (savedAccount) {
-    notifyAccountInfo(savedAccount);
-  }
+  // Restore persisted login state — renderer reads via ima:getAccountInfo on startup
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

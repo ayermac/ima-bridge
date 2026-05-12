@@ -3,12 +3,10 @@ import path from "path";
 import type { ImaAccountInfo, ElectronRuntimeApi, ApiLogEntry } from "@runtime/adapter";
 
 const api: ElectronRuntimeApi = {
-  openLoginWindow: () => ipcRenderer.invoke("ima:openLoginWindow"),
-  closeLoginWindow: () => ipcRenderer.invoke("ima:closeLoginWindow"),
   getAccountInfo: () => ipcRenderer.invoke("ima:getAccountInfo"),
-  getLoginProbeStatus: () => ipcRenderer.invoke("ima:getLoginProbeStatus"),
   clearAccountInfo: () => ipcRenderer.invoke("ima:clearAccountInfo"),
   setAccountInfo: (info: ImaAccountInfo) => ipcRenderer.invoke("ima:setAccountInfo", info),
+  startLoginServer: () => ipcRenderer.invoke("ima:startLoginServer"),
   chooseDirectory: () => ipcRenderer.invoke("ima:chooseDirectory"),
   saveFile: (filePath: string, data: string) => ipcRenderer.invoke("ima:saveFile", filePath, data),
   downloadUrl: (url: string, filePath: string) => ipcRenderer.invoke("ima:downloadUrl", url, filePath),
@@ -33,11 +31,6 @@ const api: ElectronRuntimeApi = {
     const handler = (_event: unknown, account: ImaAccountInfo | null) => callback(account);
     ipcRenderer.on("ima:accountInfoChanged", handler);
     return () => ipcRenderer.removeListener("ima:accountInfoChanged", handler);
-  },
-  onLoginWindowClosed: (callback) => {
-    const handler = () => callback();
-    ipcRenderer.on("ima:loginWindowClosed", handler);
-    return () => ipcRenderer.removeListener("ima:loginWindowClosed", handler);
   },
   onOpenApiConfigChanged: (callback) => {
     const handler = () => callback();

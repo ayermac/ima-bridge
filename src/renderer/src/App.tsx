@@ -3,12 +3,13 @@ import type { KnowledgeBase, DocumentItem, QueueItem, FolderPathItem } from "@co
 import { filenameFor, pathParts, cleanPathPart } from "@core/path-utils";
 import type { ApiLogEntry } from "@runtime/adapter";
 import { useAccountInfo, useRuntime, useOpenApiConfigStatus, useOpenApiSettings, useDuplicatePolicy, useSyncApi, createImaWebApi } from "./hooks/useIpc";
-import LoginPanel from "./components/LoginPanel";
+import { parseAccountInfo } from "@core/ima-web-auth";
 import KnowledgeBaseList from "./components/KnowledgeBaseList";
 import DocumentList from "./components/DocumentList";
 import DownloadQueue from "./components/DownloadQueue";
 import TargetKbSelector from "./components/TargetKbSelector";
 import SettingsPanel from "./components/SettingsPanel";
+import { EmptyState } from "./components/AppState";
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -18,8 +19,13 @@ const FOLDER_PAGE_SIZE = 50;
 type AppSection = "library" | "queue" | "settings" | "logs";
 
 export default function App() {
-  const { account, openLogin, clearLogin, checkLoginStatus, manualLogin, loginWindowClosedCount } = useAccountInfo();
-  const [loginPending, setLoginPending] = useState(false);
+  const { account, clearLogin, setAccountInfo, startLoginServer } = useAccountInfo();
+  const [loginJson, setLoginJson] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginPort, setLoginPort] = useState<number | null>(null);
+  const [loginCountdown, setLoginCountdown] = useState(0);
+  const [scriptCopied, setScriptCopied] = useState(false);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runtime = useRuntime();
   const { configStatus } = useOpenApiConfigStatus();
   const { settingsStatus, saving: savingSettings, saveSettings, clearSettings } = useOpenApiSettings();
@@ -109,6 +115,10 @@ export default function App() {
       setLoadingKb(false);
     }
   }, [account, getApi]);
+
+  useEffect(() => {
+    if (account) loadBases();
+  }, [account, loadBases]);
 
   const loadFolder = useCallback(
     async (
@@ -455,55 +465,56 @@ export default function App() {
     if (dir) setDownloadDir(dir);
   }, [runtime]);
 
-  const handleOpenLogin = useCallback(async () => {
-    setLoginPending(true);
+  const handleManualLogin = useCallback(() => {
+    setLoginError("");
     try {
-      await openLogin();
+      const info = parseAccountInfo(loginJson.trim());
+      setAccountInfo(info);
+      setLoginJson("");
     } catch (err) {
-      setLoginPending(false);
-      setStatus(`打开登录窗口失败: ${(err as Error).message}`);
+      setLoginError((err as Error).message);
     }
-  }, [openLogin]);
+  }, [loginJson, setAccountInfo]);
 
-  const handleCheckLoginStatus = useCallback(async () => {
+  const handleStartLogin = useCallback(async () => {
     try {
-      const probe = await checkLoginStatus();
-      if (!probe) {
-        setStatus("检测结果：运行时不可用");
-        return;
-      }
-
-      if (probe.hasAccount) {
-        setLoginPending(false);
-        setStatus("检测结果：已识别 IMA 登录态");
-        return;
-      }
-
-      const storageCount = probe.localStorageKeys.length + probe.sessionStorageKeys.length;
-      const cookieHint = probe.cookieNames.length ? `cookie: ${probe.cookieNames.join(", ")}` : "未发现 IMA cookie";
-      let stage = "未识别到账号字段";
-      if (!probe.windowOpen) stage = "登录窗口未打开";
-      else if (probe.pageSignals.allowOnPhone || probe.pageSignals.scanSuccess) stage = "扫码已成功，仍在等待手机端允许登录或页面写入登录态";
-      else if (probe.pageSignals.expired) stage = "二维码可能已过期";
-      else if (probe.pageSignals.qrVisible) stage = "二维码页面可见，等待扫码";
-
-      setStatus(`检测结果：${stage}；storage keys ${storageCount} 个；${cookieHint}`);
+      const port = await startLoginServer();
+      setLoginPort(port);
+      setLoginCountdown(600);
+      setScriptCopied(false);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      countdownRef.current = setInterval(() => {
+        setLoginCountdown((prev) => {
+          if (prev <= 1) {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            setLoginPort(null);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     } catch (err) {
-      setStatus(`检测登录状态失败: ${(err as Error).message}`);
+      setLoginError((err as Error).message);
     }
-  }, [checkLoginStatus]);
+  }, [startLoginServer]);
 
   useEffect(() => {
-    if (account && loginPending) {
-      setLoginPending(false);
-    }
-  }, [account, loginPending]);
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, []);
 
   useEffect(() => {
-    if (loginPending) {
-      setLoginPending(false);
+    if (account) {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      setLoginPort(null);
+      setLoginCountdown(0);
     }
-  }, [loginWindowClosedCount]);
+  }, [account]);
+
+  const loginScript = loginPort
+    ? `fetch('http://127.0.0.1:${loginPort}/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountInfo:JSON.parse(localStorage.getItem('ima-universal-local-storage-accountInfo'))})}).then(r=>r.json()).then(d=>console.log('✅',d))`
+    : "";
 
   // Load persisted queue state on mount
   useEffect(() => {
@@ -610,20 +621,59 @@ export default function App() {
 
         <div className="sidebar-panel">
           <div className="sidebar-label">账号</div>
-          <div className="account-chip">
-            <div className={account ? "account-dot account-dot--ok" : "account-dot"} />
-            <div className="truncate">
-              <div className="account-title">{account ? "已登录 IMA" : "未登录"}</div>
-              <div className="account-meta truncate">{account ? `UID ${account.uid}` : "需要扫码登录"}</div>
-            </div>
-          </div>
-          <button className={account ? "small" : "primary small"} onClick={handleOpenLogin} disabled={loginPending}>
-            {loginPending ? "等待扫码..." : account ? "重新登录" : "扫码登录"}
-          </button>
-          {loginPending && (
-            <button className="small" onClick={handleCheckLoginStatus}>
-              检测登录状态
-            </button>
+          {account ? (
+            <>
+              <div className="account-chip">
+                <div className="account-dot account-dot--ok" />
+                <div className="truncate">
+                  <div className="account-title">已登录 IMA</div>
+                  <div className="account-meta truncate">UID {account.uid}</div>
+                </div>
+              </div>
+              <button className="small danger" onClick={clearLogin}>清除登录态</button>
+            </>
+          ) : (
+            <>
+              <div className="account-chip">
+                <div className="account-dot" />
+                <div className="truncate">
+                  <div className="account-title">未登录</div>
+                  <div className="account-meta truncate">选择下方方式登录</div>
+                </div>
+              </div>
+              {!loginPort ? (
+                <button className="primary small" onClick={handleStartLogin} style={{ width: "100%", marginBottom: 6 }}>一键登录</button>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+                    在 ima.qq.com 控制台输入 <code>allow pasting</code> 后粘贴以下脚本：
+                  </div>
+                  <div className="login-script-box">
+                    <button
+                      className="copy-btn small"
+                      onClick={() => { navigator.clipboard.writeText(loginScript); setScriptCopied(true); setTimeout(() => setScriptCopied(false), 2000); }}
+                    >
+                      {scriptCopied ? "已复制" : "复制"}
+                    </button>
+                    <div style={{ paddingRight: 40 }}>{loginScript}</div>
+                  </div>
+                  <div className="login-countdown">
+                    服务器运行中 · 剩余 {Math.floor(loginCountdown / 60)}:{String(loginCountdown % 60).padStart(2, "0")}
+                  </div>
+                </>
+              )}
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", margin: "6px 0 4px", borderTop: "1px solid var(--border-light)", paddingTop: 6 }}>
+                或手动粘贴 JSON：
+              </div>
+              <textarea
+                placeholder='粘贴 accountInfo JSON...'
+                value={loginJson}
+                onChange={(e) => { setLoginJson(e.target.value); setLoginError(""); }}
+                style={{ width: "100%", height: 60, padding: "4px 6px", fontSize: 11, borderRadius: 4, border: "1px solid var(--border)", resize: "vertical", fontFamily: "monospace" }}
+              />
+              <button className="small" onClick={handleManualLogin} disabled={!loginJson.trim()}>手动登录</button>
+              {loginError && <div style={{ fontSize: 11, color: "var(--danger)" }}>{loginError}</div>}
+            </>
           )}
         </div>
 
@@ -665,14 +715,46 @@ export default function App() {
         <section className="app-content">
           {section === "library" && !account && (
             <div className="content-narrow">
-              <LoginPanel
-                account={account}
-                onOpenLogin={handleOpenLogin}
-                onClearLogin={clearLogin}
-                onCheckLoginStatus={handleCheckLoginStatus}
-                onManualLogin={manualLogin}
-                loading={loginPending}
+              <EmptyState
+                title="欢迎使用 IMA Bridge"
+                description="登录后即可浏览知识库、批量下载文档、同步到云端"
               />
+              <div className="feature-grid">
+                <div className="card feature-card">
+                  <div className="feature-icon">📚</div>
+                  <div className="feature-title">知识库浏览</div>
+                  <div className="feature-desc">浏览和搜索 IMA 知识库中的文档与文件夹</div>
+                </div>
+                <div className="card feature-card">
+                  <div className="feature-icon">⬇️</div>
+                  <div className="feature-title">批量下载</div>
+                  <div className="feature-desc">一键下载文档到本地，支持 Markdown / HTML 导出</div>
+                </div>
+                <div className="card feature-card">
+                  <div className="feature-icon">☁️</div>
+                  <div className="feature-title">云端同步</div>
+                  <div className="feature-desc">将本地文件同步到指定知识库，支持队列管理</div>
+                </div>
+              </div>
+              <div className="card quickstart">
+                <div className="quickstart-title">快速上手</div>
+                <div className="quickstart-step">
+                  <div className="step-num">1</div>
+                  <div className="step-text">在浏览器打开 <a href="https://ima.qq.com/login" target="_blank" rel="noreferrer">ima.qq.com</a> 登录账号</div>
+                </div>
+                <div className="quickstart-step">
+                  <div className="step-num">2</div>
+                  <div className="step-text">按 <code>F12</code> 打开 DevTools 控制台</div>
+                </div>
+                <div className="quickstart-step">
+                  <div className="step-num">3</div>
+                  <div className="step-text">点击侧边栏「一键登录」，复制脚本。在控制台输入 <code>allow pasting</code> 后粘贴执行</div>
+                </div>
+                <div className="quickstart-step">
+                  <div className="step-num">4</div>
+                  <div className="step-text">登录成功，开始使用</div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -756,13 +838,8 @@ export default function App() {
 
               <div className="card settings-card">
                 <div className="section-title">登录状态</div>
-                <p className="muted-copy">{account ? "当前已经连接 IMA Web 登录态。" : "登录后才能浏览知识库和解析下载链接。"}</p>
-                <div className="settings-actions">
-                  <button className={account ? "small" : "primary small"} onClick={handleOpenLogin} disabled={loginPending}>
-                    {loginPending ? "等待扫码..." : account ? "重新登录" : "扫码登录"}
-                  </button>
-                  {account && <button className="small danger" onClick={clearLogin}>清除登录态</button>}
-                </div>
+                <p className="muted-copy">{account ? `已登录，UID: ${account.uid}` : "未登录，请在侧边栏粘贴 accountInfo JSON。"}</p>
+                {account && <div className="settings-actions"><button className="small danger" onClick={clearLogin}>清除登录态</button></div>}
               </div>
             </div>
           )}

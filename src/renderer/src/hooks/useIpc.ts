@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import type { ImaAccountInfo, ElectronRuntimeApi, ImaOpenApiConfigStatus, DuplicatePolicy, LoginProbeStatus } from "@runtime/adapter";
+import type { ImaAccountInfo, ElectronRuntimeApi, ImaOpenApiConfigStatus, DuplicatePolicy } from "@runtime/adapter";
 
 const api: ElectronRuntimeApi = (typeof window !== "undefined" && (window as unknown as Record<string, unknown>).electronRuntime)
   ? ((window as unknown as Record<string, unknown>).electronRuntime as ElectronRuntimeApi)
@@ -7,29 +7,14 @@ const api: ElectronRuntimeApi = (typeof window !== "undefined" && (window as unk
 
 export function useAccountInfo() {
   const [account, setAccount] = useState<ImaAccountInfo | null>(null);
-  const [loginWindowClosedCount, setLoginWindowClosedCount] = useState(0);
 
   useEffect(() => {
     if (!api) return;
     api.getAccountInfo().then(setAccount).catch(() => setAccount(null));
     const unsubAccount = api.onAccountInfoChanged((info) => setAccount(info));
-    const unsubLoginClosed = api.onLoginWindowClosed(() => {
-      setLoginWindowClosedCount((count) => count + 1);
-    });
     return () => {
       unsubAccount();
-      unsubLoginClosed();
     };
-  }, []);
-
-  const openLogin = useCallback(async () => {
-    if (!api) throw new Error("Runtime not available");
-    await api.openLoginWindow();
-  }, []);
-
-  const closeLogin = useCallback(() => {
-    if (!api) return;
-    api.closeLoginWindow();
   }, []);
 
   const clearLogin = useCallback(() => {
@@ -37,20 +22,17 @@ export function useAccountInfo() {
     api.clearAccountInfo().then(() => setAccount(null));
   }, []);
 
-  const manualLogin = useCallback((info: ImaAccountInfo) => {
+  const setAccountInfo = useCallback((info: ImaAccountInfo) => {
     if (!api) return;
     api.setAccountInfo(info).then(() => setAccount(info));
   }, []);
 
-  const checkLoginStatus = useCallback(async (): Promise<LoginProbeStatus | null> => {
-    if (!api) return null;
-    const status = await api.getLoginProbeStatus();
-    const info = await api.getAccountInfo();
-    if (info) setAccount(info);
-    return status;
+  const startLoginServer = useCallback(async () => {
+    if (!api) throw new Error("Runtime not available");
+    return api.startLoginServer();
   }, []);
 
-  return { account, openLogin, closeLogin, clearLogin, checkLoginStatus, manualLogin, loginWindowClosedCount };
+  return { account, clearLogin, setAccountInfo, startLoginServer };
 }
 
 export async function createImaWebApi(account: ImaAccountInfo) {

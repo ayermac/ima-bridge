@@ -38,25 +38,6 @@ export type QueuePersistedState = {
   targetKnowledgeBaseId: string | null;
 };
 
-export type LoginProbeStatus = {
-  windowOpen: boolean;
-  href?: string;
-  title?: string;
-  readyState?: string;
-  hasAccount: boolean;
-  localStorageKeys: string[];
-  sessionStorageKeys: string[];
-  cookieNames: string[];
-  pageSignals: {
-    scanSuccess: boolean;
-    allowOnPhone: boolean;
-    qrVisible: boolean;
-    expired: boolean;
-    loginSuccess: boolean;
-  };
-};
-
-// ElectronRuntimeAdapter is implemented in main process and exposed via IPC
 export type ApiLogEntry = {
   time: string;
   level: "info" | "error" | "warn";
@@ -64,12 +45,10 @@ export type ApiLogEntry = {
 };
 
 export type ElectronRuntimeApi = {
-  openLoginWindow(): Promise<void>;
-  closeLoginWindow(): Promise<void>;
   getAccountInfo(): Promise<ImaAccountInfo | null>;
-  getLoginProbeStatus(): Promise<LoginProbeStatus>;
   clearAccountInfo(): Promise<void>;
   setAccountInfo(info: ImaAccountInfo): Promise<void>;
+  startLoginServer(): Promise<number>;
   chooseDirectory(): Promise<string | null>;
   saveFile(path: string, data: string): Promise<void>;
   downloadUrl(url: string, path: string): Promise<void>;
@@ -98,7 +77,6 @@ export type ElectronRuntimeApi = {
   saveQueueState(state: QueuePersistedState): Promise<void>;
   clearQueueState(): Promise<void>;
   onAccountInfoChanged(callback: (account: ImaAccountInfo | null) => void): () => void;
-  onLoginWindowClosed(callback: () => void): () => void;
   onOpenApiConfigChanged(callback: () => void): () => void;
   onApiLog(callback: (entry: ApiLogEntry) => void): () => void;
   apiFetch(url: string, init: { method?: string; headers?: Record<string, string>; body?: string }): Promise<ApiFetchResult>;
