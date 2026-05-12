@@ -17,7 +17,7 @@ Browse, download, and sync IMA (ima.qq.com) knowledge base content locally. Pure
 
 ## Features
 
-- **WebView QR Login** — Embedded WebView auto-probes localStorage for credentials, polls page signals (scan success, authorization, expiry) with manual login fallback
+- **One-Click Login** — Start a local HTTP server, paste a one-liner JS script in ima.qq.com DevTools console to transfer credentials automatically; manual JSON paste also supported
 - **Knowledge Bases** — Browse personal, created, and joined knowledge bases with cover logos
 - **Folder Navigation** — Paginated browsing for large folders, breadcrumb navigation
 - **Multi-Type Export** — PDF, images, documents, slides, audio, video, spreadsheets, links, WeChat articles, notebooks
@@ -40,7 +40,7 @@ Browse, download, and sync IMA (ima.qq.com) knowledge base content locally. Pure
                        │ IPC (contextBridge)
 ┌──────────────────────┴──────────────────────────┐
 │                 Main Process (Electron)          │
-│  IPC Handlers │ Login Window (WebView+Probe) │ Queue Store │
+│  IPC Handlers │ Login Server (HTTP) │ Queue Store │
 │  Download (binary) │ COS Upload │ File I/O       │
 │  Settings Store (encrypted) │ API Log Collector  │
 └──────────────────────┬──────────────────────────┘
@@ -95,7 +95,7 @@ npm run test:run
 
 ## Usage
 
-1. Click **"扫码登录"** — an embedded WebView opens IMA login page, auto-detects scan success and credential storage; if auto-detection fails, use the manual login button
+1. Click **"一键登录"** — a local HTTP server starts; paste the displayed JS script in ima.qq.com DevTools console (type `allow pasting` first in Chrome) to transfer credentials automatically; alternatively, paste accountInfo JSON manually
 2. Browse knowledge bases, click to enter one
 3. Select files:
    - **Download** — Save to local directory
